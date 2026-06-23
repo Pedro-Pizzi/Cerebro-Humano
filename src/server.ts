@@ -156,14 +156,18 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
                 
                 const fetchPromise = (whatsappClient as any).pupPage ? (whatsappClient as any).pupPage.evaluate(() => {
                     const rawChats = (window as any).WWebJS.getChats();
-                    return rawChats.map((c: any) => ({
-                        id: c.id,
-                        name: c.name,
-                        pushname: c.pushname,
-                        number: c.id.user,
-                        isUser: !c.isGroup,
-                        isGroup: c.isGroup
-                    }));
+                    return rawChats.map((c: any) => {
+                        let contact = c.contact || {};
+                        let displayName = c.name || c.formattedTitle || contact.name || contact.pushname || contact.verifiedName || '';
+                        return {
+                            id: c.id,
+                            name: displayName,
+                            pushname: contact.pushname || '',
+                            number: c.id.user,
+                            isUser: !c.isGroup,
+                            isGroup: c.isGroup
+                        };
+                    });
                 }) : whatsappClient.getChats().then(chats => chats.map(chat => ({
                     id: { _serialized: chat.id._serialized },
                     name: chat.name,
