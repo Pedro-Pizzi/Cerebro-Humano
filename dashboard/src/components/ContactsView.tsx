@@ -160,7 +160,8 @@ export function ContactsView() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Contact</th>
+                  <th>Name</th>
+                  <th>WhatsApp</th>
                   <th>Type</th>
                   <th>Can reply</th>
                   <th>Proactive</th>
@@ -168,15 +169,26 @@ export function ContactsView() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((c) => (
+                {filtered.map((c) => {
+                  const idSuffix = c.id.includes('@') ? c.id.split('@')[1]?.toUpperCase() : '';
+                  const idType: Record<string, string> = { 'LID': 'Address book', 'C.US': 'WhatsApp', 'G.US': 'Group', 'NEWSLETTER': 'Business' };
+                  return (
                   <tr key={c.id}>
                     <td>
                       <div style={{ fontWeight: 500 }}>{c.name}</div>
                       {c.pushname && c.pushname !== c.name && (
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
-                          {c.pushname}
+                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                          aka {c.pushname}
                         </div>
                       )}
+                    </td>
+                    <td>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                        {c.id.split('@')[0].slice(0, 20)}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', opacity: 0.6 }}>
+                        @{idSuffix} — {idType[idSuffix] || idSuffix}
+                      </div>
                     </td>
                     <td>
                       <span className={`badge ${c.isGroup ? 'badge-neutral' : 'badge-success'}`}>
@@ -223,7 +235,8 @@ export function ContactsView() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           </div>

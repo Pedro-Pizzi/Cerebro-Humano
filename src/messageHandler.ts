@@ -104,10 +104,11 @@ async function extractTextBody(msg: Message): Promise<string | null> {
     return body.replace(/[ \t]+/g, ' ');
 }
 
-function firstNameFrom(value?: string): string | undefined {
+function displayNameFrom(value?: string): string | undefined {
     const clean = value?.trim();
     if (!clean) return undefined;
-    return clean.split(/\s+/)[0];
+    // Return full name, not just first word — "Ana Rita" stays "Ana Rita"
+    return clean;
 }
 
 async function getSenderInfo(msg: Message, isGroup: boolean): Promise<{ senderId: string; senderName: string; numberOnly: string }> {
@@ -117,29 +118,29 @@ async function getSenderInfo(msg: Message, isGroup: boolean): Promise<{ senderId
 
     if (cached) {
         contactMeta[senderId].lastActivity = Date.now();
-        // Fire & forget
         saveContact(senderId, cached, undefined, isGroup).catch(() => {});
         return { senderId, senderName: cached, numberOnly };
     }
 
-    let firstName = numberOnly;
+    let displayName = numberOnly;
     let pushname: string | undefined = undefined;
     try {
         const contact = await msg.getContact();
         const contactAny = contact as any;
         pushname = contactAny.pushname;
-        firstName = firstNameFrom(pushname || contact.name || contact.shortName || contact.number) || numberOnly;
+        // Use full display name — not truncated to first word
+        displayName = displayNameFrom(pushname || contact.name || contact.shortName || contact.number) || numberOnly;
     } catch {
         // fall back to number
     }
 
     contactMeta[senderId] = {
-        firstName,
+        firstName: displayName,
         lastActivity: Date.now(),
     };
 
-    saveContact(senderId, firstName, pushname, isGroup).catch(() => {});
-    return { senderId, senderName: firstName, numberOnly };
+    saveContact(senderId, displayName, pushname, isGroup).catch(() => {});
+    return { senderId, senderName: displayName, numberOnly };
 }
 
 function shouldStartGroupReply(body: string): { shouldRespond: boolean; directMention: boolean } {
@@ -273,6 +274,17 @@ export async function handleIncomingMessage(msg: Message) {
     const textBody = await extractTextBody(msg);
 
     if (!textBody) return;
+
+    // Save the chat (private conversation or group) as a contact
+    // so it appears in the dashboard contacts list even before permissions are set
+    if (isGroup && chatName) {
+        saveContact(chatId, chatName, undefined, true).catch(() => {});
+    } else if (!isGroup) {
+        // For private chats, the chat IS the contact — sender info saved below
+        // But save the chat too in case the sender lookup fails
+        const numberOnly = chatId.split('@')[0];
+        saveContact(chatId, numberOnly, undefined, false).catch(() => {});
+    }
 
     const allowedIds = await getAllAllowedContactsIds();
     const isAllowed = allowedIds.includes(chatId);
