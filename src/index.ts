@@ -8,6 +8,7 @@ import { startServer } from './server';
 import { startProactivityCron } from './ai/proactivity';
 import { setupAuthWatchdog, startReadyWatchdog, startBrowserDiagnostics, startReadyRecovery } from './watchdogs';
 import fs from 'fs';
+import path from 'path';
 
 const DB_DIR = fs.existsSync('/data') ? '/data' : process.cwd();
 
@@ -54,6 +55,17 @@ async function main() {
     await prewarmModel();
     startProactivityCron();
     const runtimeState: RuntimeState = { ready: false };
+
+    // Railway workaround: deletar o SingletonLock do Chromium antes de iniciar
+    const lockPath = path.join(DB_DIR, '.wwebjs_auth', 'session', 'SingletonLock');
+    if (fs.existsSync(lockPath)) {
+        try {
+            fs.unlinkSync(lockPath);
+            console.log('[Init] SingletonLock removido (prevenindo crash do Chromium)');
+        } catch (e) {
+            console.error('[Init] Erro ao remover SingletonLock:', e);
+        }
+    }
 
     console.log('[Init] Criando cliente WhatsApp...');
     console.log(`[Init] Chrome: ${CHROME_PATH}`);
