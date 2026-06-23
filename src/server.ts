@@ -133,15 +133,49 @@ app.post('/api/settings', async (req, res) => {
     }
 });
 
+let contactsCache: any[] | null = null;
+let contactsCacheTime = 0;
+let contactsPromise: Promise<any[]> | null = null;
+
 app.get('/api/whatsapp/contacts', async (req, res) => {
     try {
         if (!whatsappClient) {
             console.log("[API] /api/whatsapp/contacts -> WhatsApp offline");
             return res.status(400).json({ error: "WhatsApp offline" });
         }
+        
         console.log("[API] Buscando contatos do WhatsApp...");
-        const waContacts = await whatsappClient.getContacts();
-        console.log(`[API] Encontrados ${waContacts.length} contatos brutos.`);
+        let waContacts: any[];
+
+        if (contactsCache && Date.now() - contactsCacheTime < 60000) {
+            waContacts = contactsCache;
+            console.log(`[API] Usando cache: ${waContacts.length} contatos brutos.`);
+        } else {
+            if (!contactsPromise) {
+                const timeoutMs = 120000; // 2 minutes max
+                const fetchPromise = whatsappClient.getContacts();
+                const timeoutPromise = new Promise<any[]>((_, reject) => 
+                    setTimeout(() => reject(new Error("Timeout getting contacts from WA")), timeoutMs)
+                );
+                
+                contactsPromise = Promise.race([fetchPromise, timeoutPromise])
+                    .then(c => {
+                        contactsCache = c;
+                        contactsCacheTime = Date.now();
+                        contactsPromise = null;
+                        return c;
+                    })
+                    .catch(err => {
+                        contactsPromise = null;
+                        throw err;
+                    });
+            } else {
+                console.log("[API] Aguardando busca de contatos já em andamento...");
+            }
+            waContacts = await contactsPromise;
+            console.log(`[API] Encontrados ${waContacts.length} contatos brutos.`);
+        }
+
         const savedContacts = await getContactsList();
         const savedMap = new Map(savedContacts.map(c => [c.id, c]));
 
@@ -160,6 +194,7 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
         });
         res.json({ contacts: list });
     } catch (err) {
+        console.error("[API] Erro ao buscar contatos:", err);
         res.status(500).json({ error: String(err) });
     }
 });
