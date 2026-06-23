@@ -1,7 +1,10 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
+import fs from 'fs';
 
-const DB_PATH = path.join(process.cwd(), 'brain.sqlite');
+// Se tivermos um volume montado no Railway (ex: /data), usamos ele para não perder o DB
+const DB_DIR = fs.existsSync('/data') ? '/data' : process.cwd();
+const DB_PATH = path.join(DB_DIR, 'brain.sqlite');
 
 let db: sqlite3.Database;
 

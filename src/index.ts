@@ -7,6 +7,9 @@ import { initMemory } from './brain/memory';
 import { startServer } from './server';
 import { startProactivityCron } from './ai/proactivity';
 import { setupAuthWatchdog, startReadyWatchdog, startBrowserDiagnostics, startReadyRecovery } from './watchdogs';
+import fs from 'fs';
+
+const DB_DIR = fs.existsSync('/data') ? '/data' : process.cwd();
 
 type ClientWithInternals = Client & {
     pupPage?: {
@@ -57,8 +60,10 @@ async function main() {
     console.log(`[Init] Modo browser: ${HEADLESS ? 'headless' : 'visivel'}`);
     console.log(`[Init] WhatsApp Web: ${WA_WEB_VERSION}`);
 
-    const client = new Client({
-        authStrategy: new LocalAuth(),
+    const client: ClientWithInternals = new Client({
+        authStrategy: new LocalAuth({
+            dataPath: DB_DIR
+        }),
         authTimeoutMs: 90000,
         takeoverOnConflict: true,
         takeoverTimeoutMs: 5000,
