@@ -179,31 +179,75 @@ app.post('/api/contacts/permissions', async (req, res) => {
     }
 });
 
-// Servir o Frontend (Dashboard) estaticamente se a pasta dist existir
+// ── Dashboard static serving (in-memory cache) ────────────
+// Container CPU is limited — cache all dashboard assets in memory at startup
+// to eliminate filesystem I/O per request.
 const dashboardPath = path.join(__dirname, '../dashboard/dist');
 const dashboardIndex = path.join(dashboardPath, 'index.html');
+const assetCache = new Map<string, { data: Buffer; contentType: string }>();
 
-// Pre-check that dashboard exists
-const dashboardBuilt = fs.existsSync(dashboardIndex);
-if (dashboardBuilt) {
-    console.log(`[Dashboard] Serving static files from ${dashboardPath}`);
-    app.use(express.static(dashboardPath, {
-        maxAge: '1h',
-        immutable: true,
-    }));
-} else {
-    console.warn(`[Dashboard] dist/ not found at ${dashboardPath} — run 'npm run build' in dashboard/ first`);
+function preloadAssets(dir: string, base: string) {
+    if (!fs.existsSync(dir)) return;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            preloadAssets(full, base);
+        } else {
+            const urlPath = full.replace(base, '').replace(/\\/g, '/');
+            const ext = path.extname(entry.name).toLowerCase();
+            const mimeTypes: Record<string, string> = {
+                '.html': 'text/html; charset=utf-8',
+                '.js': 'application/javascript; charset=utf-8',
+                '.css': 'text/css; charset=utf-8',
+                '.svg': 'image/svg+xml',
+                '.png': 'image/png',
+                '.ico': 'image/x-icon',
+                '.json': 'application/json; charset=utf-8',
+                '.woff2': 'font/woff2',
+            };
+            assetCache.set(urlPath, {
+                data: fs.readFileSync(full),
+                contentType: mimeTypes[ext] || 'application/octet-stream',
+            });
+        }
+    }
 }
 
-// SPA fallback — only for non-API routes
+const dashboardBuilt = fs.existsSync(dashboardIndex);
+if (dashboardBuilt) {
+    preloadAssets(dashboardPath, dashboardPath);
+    console.log(`[Dashboard] ${assetCache.size} assets cached in memory from ${dashboardPath}`);
+} else {
+    console.warn(`[Dashboard] dist/ not found at ${dashboardPath}`);
+}
+
+// Serve cached assets
 app.use((req, res, next) => {
     if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
         return next();
     }
-    if (!dashboardBuilt) {
-        return res.status(503).send('Dashboard not built. Run: cd dashboard && npm run build');
+
+    // Try exact match first
+    let asset = assetCache.get(req.path);
+    // Fallback: strip leading slash
+    if (!asset && req.path.startsWith('/')) {
+        asset = assetCache.get(req.path.slice(1));
     }
-    res.sendFile(dashboardIndex);
+
+    if (asset) {
+        res.setHeader('Content-Type', asset.contentType);
+        res.setHeader('Cache-Control', 'public, max-age=3600, immutable');
+        return res.send(asset.data);
+    }
+
+    // SPA fallback — serve index.html for client-side routes
+    const index = assetCache.get('/index.html') || assetCache.get('index.html');
+    if (index) {
+        res.setHeader('Content-Type', index.contentType);
+        return res.send(index.data);
+    }
+
+    next();
 });
 
 io.on('connection', (socket) => {
