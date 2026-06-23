@@ -167,8 +167,7 @@ function mapDbContacts(rows: any[]) {
 }
 
 // Contacts are populated during message processing via saveContact() in getSenderInfo().
-// WhatsApp Store.Contact extraction via pupPage.evaluate() is too slow in the Railway
-// container (Puppeteer bridge serialization bottleneck) — DB is the reliable source.
+// Use Client.getChats() to sync all WhatsApp conversations (lighter than Store.Contact extraction).
 app.get('/api/whatsapp/contacts', async (_req, res) => {
     try {
         const savedContacts = await getContactsList();
@@ -176,6 +175,40 @@ app.get('/api/whatsapp/contacts', async (_req, res) => {
     } catch (err) {
         console.error("[API] Error fetching contacts:", err);
         res.json({ contacts: [], source: 'error' });
+    }
+});
+
+// Sync ALL WhatsApp chats into the DB — groups and individual conversations.
+// Uses Client.getChats() which is lighter than Store.Contact serialization.
+app.post('/api/whatsapp/sync', async (_req, res) => {
+    try {
+        if (!whatsappClient) {
+            return res.status(400).json({ error: 'WhatsApp client not initialized' });
+        }
+
+        console.log('[API] Syncing all chats from WhatsApp...');
+        const chats = await (whatsappClient as any).getChats();
+        console.log(`[API] Fetched ${chats.length} chats from WhatsApp`);
+
+        let saved = 0;
+        for (const chat of chats) {
+            try {
+                const id = chat.id?._serialized || chat.id;
+                if (!id || id === 'status@broadcast') continue;
+                const name = chat.name || '';
+                const isGroup = chat.isGroup || false;
+                await saveContact(id, name || id.split('@')[0], undefined, isGroup);
+                saved++;
+            } catch {
+                // skip individual failures
+            }
+        }
+
+        const contacts = mapDbContacts(await getContactsList());
+        res.json({ synced: saved, total: chats.length, contacts, source: 'whatsapp' });
+    } catch (err: any) {
+        console.error('[API] WhatsApp sync failed:', err.message);
+        res.status(500).json({ error: err.message });
     }
 });
 

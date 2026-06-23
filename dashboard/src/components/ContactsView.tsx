@@ -31,7 +31,7 @@ export function ContactsView() {
     setSyncing(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/whatsapp/contacts`);
+      const res = await fetch(`${API_URL}/api/whatsapp/sync`, { method: 'POST' });
       const data = await res.json();
       if (data.error) {
         setError(data.error);
