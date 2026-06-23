@@ -12,6 +12,9 @@ USER root
 RUN mkdir -p /app /data
 WORKDIR /app
 
+# Install system deps: Chromium for Puppeteer + build tools for sqlite3 native module
+RUN apt-get update && apt-get install -y chromium build-essential python3 && rm -rf /var/lib/apt/lists/*
+
 # ── Backend ──────────────────────────────────
 COPY package*.json ./
 # Install all deps (incl. devDeps) — we need tsx to run TypeScript
