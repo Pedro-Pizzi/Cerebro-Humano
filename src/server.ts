@@ -152,7 +152,7 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
             console.log(`[API] Usando cache: ${waContacts.length} contatos brutos.`);
         } else {
             if (!contactsPromise) {
-                const timeoutMs = 120000; // 2 minutes max
+                const timeoutMs = 600000; // 10 minutes max
                 const fetchPromise = whatsappClient.getContacts();
                 const timeoutPromise = new Promise<any[]>((_, reject) => 
                     setTimeout(() => reject(new Error("Timeout getting contacts from WA")), timeoutMs)
