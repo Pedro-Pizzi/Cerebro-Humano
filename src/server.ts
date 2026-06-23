@@ -196,7 +196,7 @@ if (dashboardBuilt) {
 }
 
 // SPA fallback — only for non-API routes
-app.get('*', (req, res, next) => {
+app.use((req, res, next) => {
     if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
         return next();
     }
