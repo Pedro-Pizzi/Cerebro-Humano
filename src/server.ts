@@ -112,7 +112,7 @@ app.post('/api/profile/extract', async (req, res) => {
 });
 
 // Servir o Frontend (Dashboard) estaticamente se a pasta dist existir
-const dashboardPath = path.join(__dirname, '../../dashboard/dist');
+const dashboardPath = path.join(__dirname, '../dashboard/dist');
 app.use(express.static(dashboardPath));
 app.use((req, res) => {
     res.sendFile(path.join(dashboardPath, 'index.html'));
