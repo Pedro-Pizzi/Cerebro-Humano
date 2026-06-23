@@ -1,0 +1,286 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "title": "Design System: Cérebro Dashboard",
+  "extensions": {
+    "colorMeta": {
+      "cortex-blue": {
+        "role": "primary",
+        "displayName": "Cortex Blue",
+        "canonical": "oklch(0.62 0.15 250)",
+        "tonalRamp": [
+          "oklch(0.25 0.15 250)",
+          "oklch(0.35 0.15 250)",
+          "oklch(0.45 0.15 250)",
+          "oklch(0.55 0.15 250)",
+          "oklch(0.62 0.15 250)",
+          "oklch(0.72 0.15 250)",
+          "oklch(0.82 0.15 250)",
+          "oklch(0.90 0.15 250)"
+        ]
+      },
+      "neural-black": {
+        "role": "neutral",
+        "displayName": "Neural Black",
+        "canonical": "oklch(0.145 0.008 260)",
+        "tonalRamp": [
+          "oklch(0.10 0.008 260)",
+          "oklch(0.145 0.008 260)",
+          "oklch(0.175 0.008 260)",
+          "oklch(0.20 0.008 260)",
+          "oklch(0.30 0.006 260)",
+          "oklch(0.42 0.006 260)",
+          "oklch(0.62 0.006 260)",
+          "oklch(0.92 0 0)"
+        ]
+      },
+      "success-green": {
+        "role": "semantic",
+        "displayName": "Success Green",
+        "canonical": "oklch(0.62 0.14 160)",
+        "tonalRamp": [
+          "oklch(0.22 0.04 160)",
+          "oklch(0.32 0.08 160)",
+          "oklch(0.42 0.10 160)",
+          "oklch(0.52 0.12 160)",
+          "oklch(0.62 0.14 160)",
+          "oklch(0.72 0.14 160)",
+          "oklch(0.82 0.10 160)",
+          "oklch(0.90 0.06 160)"
+        ]
+      },
+      "error-red": {
+        "role": "semantic",
+        "displayName": "Error Red",
+        "canonical": "oklch(0.55 0.18 25)",
+        "tonalRamp": [
+          "oklch(0.22 0.04 25)",
+          "oklch(0.32 0.08 25)",
+          "oklch(0.42 0.12 25)",
+          "oklch(0.55 0.18 25)",
+          "oklch(0.62 0.18 25)",
+          "oklch(0.72 0.14 25)",
+          "oklch(0.82 0.10 25)",
+          "oklch(0.90 0.06 25)"
+        ]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Text Primary",
+        "canonical": "oklch(0.92 0 0)",
+        "tonalRamp": [
+          "oklch(0.42 0.006 260)",
+          "oklch(0.52 0.006 260)",
+          "oklch(0.62 0.006 260)",
+          "oklch(0.72 0.004 260)",
+          "oklch(0.82 0.002 260)",
+          "oklch(0.88 0 0)",
+          "oklch(0.92 0 0)",
+          "oklch(0.96 0 0)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "body": {
+        "displayName": "Body",
+        "purpose": "Primary content text. 65–75ch max line length for prose."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Navigation items, form labels, table headers, badge text."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "System prompts, AI responses, code, manual override input."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-sm",
+        "value": "0 1px 2px rgba(0, 0, 0, 0.30)",
+        "purpose": "Button hover lift, subtle interactive feedback."
+      },
+      {
+        "name": "shadow-md",
+        "value": "0 4px 12px rgba(0, 0, 0, 0.40)",
+        "purpose": "Card hover, dropdown menus, elevated interactive surfaces."
+      },
+      {
+        "name": "shadow-lg",
+        "value": "0 8px 24px rgba(0, 0, 0, 0.50)",
+        "purpose": "Modal dialogs, tooltips. Highest elevation layer."
+      }
+    ],
+    "motion": [
+      {
+        "name": "transition-fast",
+        "value": "120ms ease",
+        "purpose": "Micro-interactions: focus rings, toggle switches, hover color shifts."
+      },
+      {
+        "name": "transition",
+        "value": "180ms ease",
+        "purpose": "Standard state transitions: buttons, inputs, nav items, card hover."
+      },
+      {
+        "name": "transition-slow",
+        "value": "250ms ease",
+        "purpose": "Larger transitions: sidebar slide (mobile), modal open/close."
+      }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main call-to-action. Max one per screen section.",
+      "html": "<button class=\"ds-btn-primary\">Save changes</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 16px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; line-height: 1; color: #FFFFFF; background: #4A8FD4; border: 1px solid transparent; border-radius: 6px; cursor: pointer; transition: background 120ms ease; white-space: nowrap; } .ds-btn-primary:hover { background: #5A9FDE; } .ds-btn-primary:focus-visible { outline: 2px solid #4A8FD4; outline-offset: 2px; } .ds-btn-primary:active { background: #4A8FD4; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default choice when primary is already on screen.",
+      "html": "<button class=\"ds-btn-secondary\">Sync from WhatsApp</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 16px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; line-height: 1; color: #8E9098; background: transparent; border: 1px solid #3E4046; border-radius: 6px; cursor: pointer; transition: all 120ms ease; white-space: nowrap; } .ds-btn-secondary:hover { color: #EBEBEB; background: #202226; border-color: #505258; } .ds-btn-secondary:focus-visible { outline: 2px solid #4A8FD4; outline-offset: 2px; } .ds-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Low-priority actions, navigation items, inline controls.",
+      "html": "<button class=\"ds-btn-ghost\">Extract profile</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 16px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; line-height: 1; color: #8E9098; background: transparent; border: none; border-radius: 6px; cursor: pointer; transition: all 120ms ease; white-space: nowrap; } .ds-btn-ghost:hover { color: #EBEBEB; background: #202226; } .ds-btn-ghost:focus-visible { outline: 2px solid #4A8FD4; outline-offset: 2px; } .ds-btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard text field. Invisible until needed.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Search contacts…\" />",
+      "css": ".ds-input { width: 100%; padding: 8px 12px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 0.8125rem; color: #EBEBEB; background: #1A1C20; border: 1px solid #3E4046; border-radius: 6px; outline: none; transition: border-color 120ms ease, box-shadow 120ms ease; } .ds-input::placeholder { color: #5C5E66; } .ds-input:focus { border-color: #4A8FD4; box-shadow: 0 0 0 3px oklch(0.22 0.04 250); }"
+    },
+    {
+      "name": "Toggle Switch",
+      "kind": "custom",
+      "refersTo": "toggle",
+      "description": "Immediate binary control. Physical toggle rendered in pixels.",
+      "html": "<label class=\"ds-toggle\"><input type=\"checkbox\" /><span class=\"ds-toggle-track\"></span><span>Enable replies</span></label>",
+      "css": ".ds-toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.8125rem; font-weight: 500; color: #EBEBEB; user-select: none; } .ds-toggle input { position: absolute; opacity: 0; width: 0; height: 0; } .ds-toggle-track { position: relative; width: 36px; height: 20px; background: #3E4046; border-radius: 10px; transition: background 120ms ease; flex-shrink: 0; } .ds-toggle-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform 120ms ease; } .ds-toggle input:checked + .ds-toggle-track { background: #4A8FD4; } .ds-toggle input:checked + .ds-toggle-track::after { transform: translateX(16px); } .ds-toggle input:disabled + .ds-toggle-track { opacity: 0.4; cursor: not-allowed; } .ds-toggle input:focus-visible + .ds-toggle-track { outline: 2px solid #4A8FD4; outline-offset: 2px; }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Sidebar navigation item. Fixed sidebar, 220px wide.",
+      "html": "<div class=\"ds-sidebar\"><button class=\"ds-nav-item active\"><span class=\"ds-nav-icon\">◉</span>Live Feed<span class=\"ds-nav-badge\">3</span></button><button class=\"ds-nav-item\"><span class=\"ds-nav-icon\">👥</span>Contacts</button></div>",
+      "css": ".ds-sidebar { width: 220px; background: #1A1C20; border-right: 1px solid #3E4046; padding: 12px; display: flex; flex-direction: column; gap: 4px; } .ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; color: #8E9098; background: transparent; border: none; border-radius: 6px; cursor: pointer; transition: all 120ms ease; width: 100%; text-align: left; } .ds-nav-item:hover { color: #EBEBEB; background: #202226; } .ds-nav-item.active { color: oklch(0.88 0.06 250); background: oklch(0.22 0.04 250); } .ds-nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; } .ds-nav-item.active .ds-nav-icon { opacity: 1; } .ds-nav-badge { margin-left: auto; background: #4A8FD4; color: #fff; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Inline status indicator. Success, warning, error, and neutral variants.",
+      "html": "<span class=\"ds-badge ds-badge-success\"><span class=\"ds-status-dot online\"></span>Online</span><span class=\"ds-badge ds-badge-neutral\">12 messages</span><span class=\"ds-badge ds-badge-error\">Error</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; border-radius: 100px; white-space: nowrap; } .ds-badge-success { background: oklch(0.22 0.04 160); color: #3DA87A; } .ds-badge-warning { background: oklch(0.22 0.04 85); color: #C48A30; } .ds-badge-error { background: oklch(0.22 0.04 25); color: #C94A3A; } .ds-badge-neutral { background: #26282C; color: #8E9098; } .ds-status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; } .ds-status-dot.online { background: #3DA87A; } .ds-status-dot.offline { background: #C94A3A; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Content container. Neural Gray background, subtle border.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><h3 class=\"ds-card-title\">Stored facts</h3><span class=\"ds-badge ds-badge-neutral\">5</span></div><p style=\"color: #8E9098; font-size: 0.8125rem;\">Card content goes here.</p></div>",
+      "css": ".ds-card { background: #202226; border: 1px solid #3E4046; border-radius: 8px; padding: 20px; } .ds-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; } .ds-card-title { font-size: 0.9375rem; font-weight: 600; color: #EBEBEB; margin: 0; }"
+    },
+    {
+      "name": "Thought Card",
+      "kind": "custom",
+      "refersTo": "thought-card",
+      "description": "Signature component. Shows AI processing state and response for one conversation.",
+      "html": "<div class=\"ds-thought-card processing\"><div class=\"ds-thought-header\"><span class=\"ds-thought-target\">Momozi ♥️</span><span class=\"ds-thought-status\"><span class=\"ds-spinner\"></span>Thinking</span></div><div class=\"ds-thought-response sent\">jaja eu entro</div></div>",
+      "css": ".ds-thought-card { background: #1A1C20; border: 1px solid #3E4046; border-radius: 8px; padding: 20px; margin-bottom: 12px; } .ds-thought-card.processing { border-color: #4A8FD4; background: oklch(0.22 0.04 250); } .ds-thought-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; } .ds-thought-target { font-size: 0.9375rem; font-weight: 600; color: #EBEBEB; } .ds-thought-status { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; font-weight: 500; color: oklch(0.88 0.06 250); } .ds-spinner { width: 10px; height: 10px; border: 2px solid #3E4046; border-top-color: #4A8FD4; border-radius: 50%; animation: ds-spin 0.6s linear infinite; } @keyframes ds-spin { to { transform: rotate(360deg); } } .ds-thought-response { padding: 12px; background: #202226; border-radius: 6px; font-family: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', monospace; font-size: 0.8125rem; line-height: 1.5; } .ds-thought-response.sent { color: #3DA87A; } .ds-thought-response.silent { color: #5C5E66; font-style: italic; } .ds-thought-response.errored { color: #C94A3A; }"
+    },
+    {
+      "name": "Empty State",
+      "kind": "custom",
+      "refersTo": "empty-state",
+      "description": "Teaches the interface when there's nothing to show.",
+      "html": "<div class=\"ds-empty-state\"><div class=\"ds-empty-state-icon\">📖</div><div class=\"ds-empty-state-title\">No facts yet</div><p class=\"ds-empty-state-text\">Add facts about yourself so the bot can reference them in conversations.</p></div>",
+      "css": ".ds-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; } .ds-empty-state-icon { font-size: 2rem; margin-bottom: 16px; opacity: 0.4; } .ds-empty-state-title { font-size: 0.9375rem; font-weight: 600; color: #8E9098; margin-bottom: 8px; } .ds-empty-state-text { font-size: 0.8125rem; color: #5C5E66; max-width: 360px; line-height: 1.6; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Neural Console",
+    "overview": "A direct neural link to your WhatsApp AI. Information-dense but never cluttered. Surgical precision without clinical coldness. The dashboard feels like a tool a neuroscientist would build to monitor a synthetic mind — every signal has a place, every control has a clear purpose.\n\nThis is a product dashboard, not a brand surface. Design serves the task: monitoring conversations, managing permissions, editing persona. The interface should disappear into the work. Personality comes from restraint, not decoration.\n\nThe system explicitly rejects: cyberpunk neon aesthetics (no glow, no scanlines, no glassmorphism), generic SaaS dashboard templates (no cream backgrounds, no blue-gradient hero cards, no identical metric grids), and AI-generation clichés (no gradient text, no side-stripe borders, no eyebrow kickers above every section).",
+    "keyCharacteristics": [
+      "Single accent (Cortex Blue) used on ≤10% of any screen — its rarity is the point",
+      "Tonal layering over shadow: surfaces distinguished by lightness steps, not drop shadows",
+      "Fixed type scale (1.125 ratio, 7 steps) — no fluid clamp headings in product UI",
+      "One font family (Inter) for everything — product UI doesn't need display/body pairing",
+      "4px spatial grid with semantic spacing variables",
+      "120–250ms transitions, instant on reduced motion preference"
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "Cortex Blue appears on ≤10% of any given screen. If more than three elements on screen are blue, something is wrong. The accent's power comes from scarcity.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tonal Depth Rule",
+        "body": "Surfaces are distinguished by lightness steps, not shadows. Neural Black → Neural Gray → Neural Gray Raised. A 1px border marks boundaries. Shadows exist only as hover feedback on interactive elements.",
+        "section": "colors"
+      },
+      {
+        "name": "The Single-Voice Rule",
+        "body": "Inter is the only typeface. No display font, no serif headings, no decorative weight changes. Hierarchy comes from size and weight within one family.",
+        "section": "typography"
+      },
+      {
+        "name": "The Fixed-Scale Rule",
+        "body": "Type sizes are fixed rem values, not fluid clamp(). Product UI is viewed at consistent DPI; clamp-sized headings that shrink in a sidebar look broken, not responsive.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Surfaces are flat at rest. Shadows appear only as a response to state (hover, elevation, focus). If a card casts a shadow while idle, the elevation model is broken.",
+        "section": "elevation"
+      },
+      {
+        "name": "The No-Glow Rule",
+        "body": "Box-shadows never use spread for decorative glow effects. Shadows are directional offsets with blur, not colored halos. No `box-shadow: 0 0 20px var(--accent)` anywhere in the system.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use Cortex Blue for primary actions, active states, and processing indicators only — never as decoration",
+      "Do distinguish surfaces with tonal layering (Neural Black → Neural Gray → Neural Gray Raised) and 1px borders",
+      "Do use Inter at fixed rem sizes across all text — one family, one voice",
+      "Do keep transitions between 120–250ms with ease curves — users are in flow, don't make them wait",
+      "Do respect prefers-reduced-motion — all animations collapse to instant",
+      "Do show skeleton loaders for initial data fetches, not blank cards with spinners",
+      "Do pair every toggle with a visible label or screen-reader-only description",
+      "Do explain what each view does in the page subtitle and the help panel at the bottom",
+      "Do keep the Live Feed badge count accurate — it reflects real pending AI decisions"
+    ],
+    "donts": [
+      "Don't use glassmorphism panels (backdrop-filter: blur()) anywhere — this is a tool, not a showcase",
+      "Don't use gradient text (-webkit-background-clip: text) — emphasis comes from weight and size, not effects",
+      "Don't use side-stripe borders (border-left > 1px as colored accent) — use full borders, background tints, or badges instead",
+      "Don't use neon glow effects, scanline overlays, or cyberpunk aesthetics — explicitly rejected by PRODUCT.md",
+      "Don't use generic SaaS dashboard templates — no cream backgrounds, no blue-gradient hero cards, no identical metric grids",
+      "Don't nest cards inside cards — use background tint shifts or dividers for sub-sections",
+      "Don't use custom scrollbar styling as decoration — the system default is fine",
+      "Don't hardcode fake data in chart components — if metrics aren't real, don't show fake ones",
+      "Don't use jargon like 'God Mode' for manual overrides — label controls by what they do",
+      "Don't hardcode localhost in API calls — use relative URLs",
+      "Don't use box-shadow with colored spread for glow effects",
+      "Don't use decorative motion — every animation conveys state change, feedback, or loading"
+    ]
+  }
+}

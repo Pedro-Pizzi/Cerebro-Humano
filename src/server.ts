@@ -59,9 +59,17 @@ app.post('/api/persona', async (req, res) => {
     }
 });
 
-app.get('/api/contacts', async (req, res) => {
+app.get('/api/contacts', async (_req, res) => {
     try {
-        const contacts = await getContactsList();
+        const rows = await getContactsList();
+        const contacts = rows.map((c: any) => ({
+            id: c.id,
+            name: c.first_name || c.id,
+            pushname: c.pushname || '',
+            isGroup: c.is_group === 1,
+            isAllowed: c.is_allowed === 1,
+            proactivityEnabled: c.proactivity_enabled === 1,
+        }));
         res.json({ contacts });
     } catch (err) {
         res.status(500).json({ error: String(err) });
@@ -137,57 +145,90 @@ let contactsCache: any[] | null = null;
 let contactsCacheTime = 0;
 let contactsPromise: Promise<any[]> | null = null;
 
-app.get('/api/whatsapp/contacts', async (req, res) => {
+/** Check if the WhatsApp client is fully authenticated and the browser page is available. */
+function isClientReady(client: any): boolean {
+    if (!client) return false;
+    // info.wid is only set after successful authentication
+    if (!client.info?.wid) return false;
+    // pupPage is the Puppeteer page handle — must exist for evaluate() to work
+    if (!client.pupPage || typeof client.pupPage.evaluate !== 'function') return false;
+    return true;
+}
+
+app.get('/api/whatsapp/contacts', async (_req, res) => {
     try {
+        const savedContacts = await getContactsList();
+
         if (!whatsappClient) {
-            console.log("[API] /api/whatsapp/contacts -> WhatsApp offline");
-            return res.status(400).json({ error: "WhatsApp offline" });
+            console.log("[API] WhatsApp client not initialized yet.");
+            // Return DB contacts as fallback
+            return res.json({
+                contacts: savedContacts.map(c => ({
+                    id: c.id,
+                    name: c.first_name || c.id,
+                    pushname: c.pushname || '',
+                    isGroup: c.id.includes('@g.us'),
+                    isAllowed: c.is_allowed === 1,
+                    proactivityEnabled: c.proactivity_enabled === 1,
+                })),
+                source: 'database',
+            });
         }
-        
-        console.log("[API] Buscando contatos do WhatsApp...");
+
+        if (!isClientReady(whatsappClient)) {
+            console.log("[API] WhatsApp client exists but not fully authenticated — returning DB contacts.");
+            return res.json({
+                contacts: savedContacts.map(c => ({
+                    id: c.id,
+                    name: c.first_name || c.id,
+                    pushname: c.pushname || '',
+                    isGroup: c.id.includes('@g.us'),
+                    isAllowed: c.is_allowed === 1,
+                    proactivityEnabled: c.proactivity_enabled === 1,
+                })),
+                source: 'database',
+                hint: 'WhatsApp is connecting. Live contacts will appear once authenticated.',
+            });
+        }
+
+        console.log("[API] Fetching live contacts from WhatsApp...");
         let waContacts: any[];
 
-        if (contactsCache && Date.now() - contactsCacheTime < 60000) {
+        if (contactsCache && Date.now() - contactsCacheTime < 120000) {
+            // 2-minute cache — contacts don't change that fast
             waContacts = contactsCache;
-            console.log(`[API] Usando cache: ${waContacts.length} chats ativos.`);
+            console.log(`[API] Using cache: ${waContacts.length} active chats.`);
         } else {
             if (!contactsPromise) {
-                const timeoutMs = 45000; // 45 seconds max for dashboard
-                
-                // Complete Refactoring: Extract directly from the Contact Store in-browser to avoid bridge crashes
+                const timeoutMs = 30000;
+
                 const fetchPromise = (whatsappClient as any).pupPage.evaluate(() => {
                     const rawContacts = (window as any).Store.Contact.getModelsArray();
-                    const results = [];
+                    const results: any[] = [];
                     for (const c of rawContacts) {
                         if (!c.id || !c.id._serialized) continue;
                         if (c.id._serialized === 'status@broadcast') continue;
-                        
-                        // Extract name fallbacks
+
                         const displayName = c.name || c.pushname || c.verifiedName || c.formattedName || '';
-                        
-                        // Ignore nameless @lid contacts and pure numbers unless it's a group
                         if (!displayName && c.id._serialized.includes('@lid')) continue;
-                        
+
                         results.push({
                             id: { _serialized: c.id._serialized },
                             name: displayName || c.id.user,
                             pushname: c.pushname || '',
                             number: c.id.user,
                             isUser: !c.isGroup,
-                            isGroup: c.isGroup
+                            isGroup: c.isGroup,
                         });
                     }
-                    
-                    // Sort by name for the dashboard
-                    results.sort((a, b) => a.name.localeCompare(b.name));
-                    
+                    results.sort((a: any, b: any) => a.name.localeCompare(b.name));
                     return results;
                 });
 
-                const timeoutPromise = new Promise<any[]>((_, reject) => 
-                    setTimeout(() => reject(new Error("Timeout getting chats from WA")), timeoutMs)
+                const timeoutPromise = new Promise<any[]>((_, reject) =>
+                    setTimeout(() => reject(new Error("Timeout fetching WhatsApp contacts")), timeoutMs)
                 );
-                
+
                 contactsPromise = Promise.race([fetchPromise, timeoutPromise])
                     .then(c => {
                         contactsCache = c;
@@ -196,18 +237,19 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
                         return c;
                     })
                     .catch(err => {
-                        console.error("[API] Aviso: Falha ou Timeout ao buscar do WA. Retornando array vazio para permitir carregamento do Dashboard. Erro:", err.message);
+                        console.error("[API] WhatsApp contact sync failed:", err.message);
                         contactsPromise = null;
-                        return []; // Fallback to empty array
+                        contactsCache = null;
+                        contactsCacheTime = 0;
+                        return [];
                     });
             } else {
-                console.log("[API] Aguardando busca de chats já em andamento...");
+                console.log("[API] Waiting for in-progress contact fetch...");
             }
             waContacts = await contactsPromise;
-            console.log(`[API] Encontrados ${waContacts.length} chats ativos.`);
+            console.log(`[API] Found ${waContacts.length} active chats.`);
         }
 
-        const savedContacts = await getContactsList();
         const savedMap = new Map(savedContacts.map(c => [c.id, c]));
 
         const list = waContacts.filter(c => c.isUser || c.isGroup).map(c => {
@@ -220,29 +262,43 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
                 isGroup: c.isGroup,
                 isAllowed: saved ? saved.is_allowed === 1 : false,
                 proactivityEnabled: saved ? saved.proactivity_enabled === 1 : false,
-                profilePic: '' // Can be loaded async if needed later
             };
         });
 
-        // Ensure previously configured contacts appear in the list even if they don't have an active chat
+        // Merge saved contacts that don't have active chats yet
         for (const saved of savedContacts) {
             if (!list.find(x => x.id === saved.id)) {
                 list.push({
                     id: saved.id,
-                    name: saved.name || saved.id,
-                    pushname: '',
+                    name: saved.first_name || saved.id,
+                    pushname: saved.pushname || '',
                     isGroup: saved.id.includes('@g.us'),
                     isAllowed: saved.is_allowed === 1,
                     proactivityEnabled: saved.proactivity_enabled === 1,
-                    profilePic: ''
                 });
             }
         }
 
-        res.json({ contacts: list });
+        res.json({ contacts: list, source: waContacts.length > 0 ? 'whatsapp' : 'database' });
     } catch (err) {
-        console.error("[API] Erro ao buscar contatos:", err);
-        res.status(500).json({ error: String(err) });
+        console.error("[API] Error fetching contacts:", err);
+        // Never fail — return DB contacts as ultimate fallback
+        try {
+            const savedContacts = await getContactsList();
+            res.json({
+                contacts: savedContacts.map(c => ({
+                    id: c.id,
+                    name: c.first_name || c.id,
+                    pushname: c.pushname || '',
+                    isGroup: c.id.includes('@g.us'),
+                    isAllowed: c.is_allowed === 1,
+                    proactivityEnabled: c.proactivity_enabled === 1,
+                })),
+                source: 'database',
+            });
+        } catch {
+            res.json({ contacts: [], source: 'none' });
+        }
     }
 });
 

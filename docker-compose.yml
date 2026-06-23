@@ -10,5 +10,8 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
-      - ./brain.sqlite:/app/brain.sqlite
-      - ./.wwebjs_auth:/app/.wwebjs_auth
+      # Persist SQLite database and WhatsApp session across restarts
+      - cerebro_data:/data
+
+volumes:
+  cerebro_data:

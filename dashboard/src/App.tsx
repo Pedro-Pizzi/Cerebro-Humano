@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
-import { ControlPanel } from './components/ControlPanel';
-import { ManualOverride } from './components/ManualOverride';
-import { Metrics } from './components/Metrics';
+import { LiveFeed } from './components/LiveFeed';
+import { ContactsView } from './components/ContactsView';
+import { PersonaView } from './components/PersonaView';
+import { KnowledgeView } from './components/KnowledgeView';
+import { ProfilesView } from './components/ProfilesView';
 import './index.css';
 
-// Em produção, a porta é a mesma de onde o front é servido.
 const socket = io();
 
-type MessageEvent = {
+export type MessageEvent = {
   chatId: string;
   chatName?: string;
   senderName: string;
@@ -17,7 +18,7 @@ type MessageEvent = {
   timestamp: number;
 };
 
-type ThinkingEvent = {
+export type ThinkingEvent = {
   chatId: string;
   chatName?: string;
   isGroup?: boolean;
@@ -25,176 +26,124 @@ type ThinkingEvent = {
   error?: boolean;
 };
 
+type View = 'live' | 'contacts' | 'persona' | 'knowledge' | 'profiles';
+
+const NAV_ITEMS: { id: View; label: string; icon: string }[] = [
+  { id: 'live', label: 'Live Feed', icon: '◉' },
+  { id: 'contacts', label: 'Contacts', icon: '👥' },
+  { id: 'persona', label: 'Persona', icon: '🧠' },
+  { id: 'knowledge', label: 'Knowledge', icon: '📖' },
+  { id: 'profiles', label: 'Profiles', icon: '🎭' },
+];
+
 function App() {
-  const [view, setView] = useState<'live' | 'metrics'>('live');
+  const [view, setView] = useState<View>('live');
   const [messages, setMessages] = useState<MessageEvent[]>([]);
   const [activeThoughts, setActiveThoughts] = useState<Record<string, ThinkingEvent>>({});
   const [chatSentiments, setChatSentiments] = useState<Record<string, string>>({});
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // Clean up thoughts after response
+  const scheduleThoughtCleanup = useCallback((chatId: string) => {
+    setTimeout(() => {
+      setActiveThoughts((current) => {
+        const copy = { ...current };
+        delete copy[chatId];
+        return copy;
+      });
+      setPendingCount((c) => Math.max(0, c - 1));
+    }, 5000);
+  }, []);
 
   useEffect(() => {
-    socket.on('message_received', (data: MessageEvent) => {
-      setMessages((prev) => [data, ...prev].slice(0, 50));
-    });
+    const onMessage = (data: MessageEvent) => {
+      setMessages((prev) => [data, ...prev].slice(0, 100));
+    };
 
-    socket.on('thinking_start', (data: ThinkingEvent) => {
+    const onThinkingStart = (data: ThinkingEvent) => {
       setActiveThoughts((prev) => ({ ...prev, [data.chatId]: data }));
-    });
+      setPendingCount((c) => c + 1);
+    };
 
-    socket.on('thinking_end', (data: { chatId: string, response?: string | null, error?: boolean }) => {
+    const onThinkingEnd = (data: { chatId: string; response?: string | null; error?: boolean }) => {
       setActiveThoughts((prev) => {
         const next = { ...prev };
         if (next[data.chatId]) {
           next[data.chatId] = { ...next[data.chatId], response: data.response, error: data.error };
         }
-        
-        // Remove active thought after 3 seconds so the UI clears
-        setTimeout(() => {
-          setActiveThoughts((current) => {
-            const copy = { ...current };
-            delete copy[data.chatId];
-            return copy;
-          });
-        }, 3000);
-        
         return next;
       });
-    });
+      scheduleThoughtCleanup(data.chatId);
+    };
 
-    socket.on('sentiment_analyzed', (data: { chatId: string, sentiment: string }) => {
-      setChatSentiments(prev => ({ ...prev, [data.chatId]: data.sentiment }));
-    });
+    const onSentiment = (data: { chatId: string; sentiment: string }) => {
+      setChatSentiments((prev) => ({ ...prev, [data.chatId]: data.sentiment }));
+    };
+
+    socket.on('message_received', onMessage);
+    socket.on('thinking_start', onThinkingStart);
+    socket.on('thinking_end', onThinkingEnd);
+    socket.on('sentiment_analyzed', onSentiment);
 
     return () => {
-      socket.off('message_received');
-      socket.off('thinking_start');
-      socket.off('thinking_end');
-      socket.off('sentiment_analyzed');
+      socket.off('message_received', onMessage);
+      socket.off('thinking_start', onThinkingStart);
+      socket.off('thinking_end', onThinkingEnd);
+      socket.off('sentiment_analyzed', onSentiment);
     };
-  }, []);
-
-  const renderMessageBody = (body: string) => {
-    if (body.includes('[ÁUDIO TRANSCRITO]')) {
-      return <span><span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>🎙️ ÁUDIO:</span> {body.replace('[ÁUDIO TRANSCRITO]:', '')}</span>;
-    }
-    if (body.includes('[IMAGEM ENVIADA]')) {
-      return <span><span style={{ color: 'var(--neon-purple)', fontWeight: 'bold' }}>👁️ VISÃO:</span> {body.replace('[IMAGEM ENVIADA] A inteligência visual descreve:', '')}</span>;
-    }
-    return body;
-  };
-
-  const getSentimentEmoji = (sentiment: string) => {
-    const s = sentiment.toLowerCase();
-    if (s.includes('raiva') || s.includes('irrit')) return '😡';
-    if (s.includes('triste')) return '😢';
-    if (s.includes('feliz') || s.includes('eufori')) return '😁';
-    if (s.includes('curios')) return '🤔';
-    if (s.includes('ironi') || s.includes('sarc')) return '😏';
-    return '😐';
-  };
+  }, [scheduleThoughtCleanup]);
 
   return (
-    <div className="dashboard-container">
-      <div className="scanline-overlay"></div>
-      
-      <header className="header panel">
-        <h1 className="glowing-text">O Cérebro <span className="pink">v4.0</span></h1>
-        
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button 
-            onClick={() => setView('live')}
-            style={{ padding: '8px 15px', background: view === 'live' ? 'var(--neon-cyan)' : 'transparent', color: view === 'live' ? '#000' : 'var(--neon-cyan)', border: '1px solid var(--neon-cyan)', cursor: 'pointer', fontWeight: 'bold' }}>
-            🔴 LIVE FEED
-          </button>
-          <button 
-            onClick={() => setView('metrics')}
-            style={{ padding: '8px 15px', background: view === 'metrics' ? 'var(--neon-purple)' : 'transparent', color: view === 'metrics' ? '#000' : 'var(--neon-purple)', border: '1px solid var(--neon-purple)', cursor: 'pointer', fontWeight: 'bold' }}>
-            📊 MÉTRICAS
-          </button>
+    <div className="app-shell">
+      <nav className="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-brand">Cérebro</div>
         </div>
 
-        <div className="status-indicator">
-          <div className="dot pulse"></div>
-          <span>Sistema Operacional</span>
+        <div className="sidebar-nav">
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              className={`nav-item${view === item.id ? ' active' : ''}`}
+              onClick={() => setView(item.id)}
+            >
+              <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+              {item.label}
+              {item.id === 'live' && pendingCount > 0 && (
+                <span className="nav-badge">{pendingCount}</span>
+              )}
+            </button>
+          ))}
         </div>
-      </header>
 
-      {view === 'metrics' ? (
-        <div className="panel" style={{ flex: 1 }}><Metrics /></div>
-      ) : (
-      <div className="main-grid">
-        <aside className="sidebar-left panel">
-          <h2>Fluxo de Memória</h2>
-          <div className="message-list">
-            {messages.length === 0 ? (
-              <p className="dim-text">Aguardando impulsos nervosos...</p>
-            ) : (
-              messages.map((msg, idx) => (
-                <div key={idx} className="message-item">
-                  <div className="message-meta">
-                    <span className="sender">{msg.isGroup && msg.chatName ? `${msg.chatName} / ${msg.senderName}` : msg.senderName}</span>
-                    <span className="time">{new Date(msg.timestamp).toLocaleTimeString()}</span>
-                  </div>
-                  <div className="message-body">{renderMessageBody(msg.body)}</div>
-                </div>
-              ))
-            )}
+        <div style={{ marginTop: 'auto' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-2)',
+            padding: 'var(--space-3)',
+            fontSize: 'var(--text-xs)',
+            color: 'var(--text-tertiary)',
+          }}>
+            <span className="status-dot online" />
+            Sistema ativo
           </div>
-        </aside>
+        </div>
+      </nav>
 
-        <main className="center-activity panel">
-          <h2>Atividade Cerebral Ativa</h2>
-          <div className="thoughts-container">
-            {Object.keys(activeThoughts).length === 0 ? (
-              <div className="idle-state">
-                <div className="brain-wireframe pulse">🧠</div>
-                <p>Nenhum processamento ativo.</p>
-              </div>
-            ) : (
-              Object.values(activeThoughts).map((thought) => (
-                <div key={thought.chatId} className="thought-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 className="glowing-text cyan">{thought.chatName || thought.chatId}</h3>
-                    {chatSentiments[thought.chatName || thought.chatId] && (
-                      <span style={{ fontSize: '1.5rem' }} title={chatSentiments[thought.chatName || thought.chatId]}>
-                        {getSentimentEmoji(chatSentiments[thought.chatName || thought.chatId])}
-                      </span>
-                    )}
-                  </div>
-                  
-                  {!thought.response && !thought.error && (
-                    <div className="processing">
-                      <span className="spinner"></span> Consultando Persona & Memórias...
-                    </div>
-                  )}
-
-                  {thought.response && (
-                    <div className="response success">
-                      <strong>Decisão:</strong> {thought.response}
-                    </div>
-                  )}
-
-                  {thought.response === null && !thought.error && (
-                    <div className="response silence">
-                      <strong>Decisão:</strong> Manter Silêncio
-                    </div>
-                  )}
-
-                  {thought.error && (
-                    <div className="response error">
-                      <strong>Erro:</strong> Falha na sinapse (API).
-                    </div>
-                  )}
-
-                  <ManualOverride chatId={thought.chatId} chatName={thought.chatName} />
-                </div>
-              ))
-            )}
-          </div>
-        </main>
-        
-        <ControlPanel />
-      </div>
-      )}
+      <main className="main-content">
+        {view === 'live' && (
+          <LiveFeed
+            messages={messages}
+            activeThoughts={activeThoughts}
+            chatSentiments={chatSentiments}
+          />
+        )}
+        {view === 'contacts' && <ContactsView />}
+        {view === 'persona' && <PersonaView />}
+        {view === 'knowledge' && <KnowledgeView />}
+        {view === 'profiles' && <ProfilesView />}
+      </main>
     </div>
   );
 }

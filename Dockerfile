@@ -1,6 +1,5 @@
 FROM ghcr.io/puppeteer/puppeteer:latest
 
-# Define variaveis de ambiente pro Puppeteer rodar suave no Railway
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV WA_HEADLESS=true
@@ -8,28 +7,38 @@ ENV PORT=4000
 
 USER root
 
-# Cria a pasta e da permissao
+# Create app and data directories
+# /data is the Railway volume mount point for SQLite + session persistence
+RUN mkdir -p /app /data
 WORKDIR /app
+
+# ── Backend ──────────────────────────────────
 COPY package*.json ./
-# Instala dependencias para compilar modulos C++ e força a compilação do sqlite3
-RUN apt-get update && apt-get install -y python3 build-essential chromium
-RUN npm install
-RUN npm rebuild sqlite3 --build-from-source
+# Install all deps (incl. devDeps) — we need tsx to run TypeScript
+RUN npm install && npm rebuild sqlite3 --build-from-source
 
-# Copia o restante dos arquivos
-COPY . .
+# Copy backend source
+COPY tsconfig.json ./
+COPY src/ ./src/
 
-# Compila o dashboard (Frontend)
+# ── Dashboard Frontend ───────────────────────
 WORKDIR /app/dashboard
+COPY dashboard/package*.json ./
 RUN npm install
+COPY dashboard/ ./
 RUN npm run build
 
-# Volta pro backend e compila (se necessario)
-WORKDIR /app
-RUN npm run build || true
+# Keep only the built output to save space
+# The Express server serves dashboard/dist as static files
+RUN rm -rf node_modules
 
-# Como o Railway zera o disco a cada deploy, o banco de dados sqlite
-# sera limpo. Se quiser manter, configure um Volume no Railway na pasta /app/brain.sqlite
+# ── Runtime ──────────────────────────────────
+WORKDIR /app
+ENV NODE_ENV=production
 
 EXPOSE 4000
-CMD ["npm", "run", "dev"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD curl -sf http://localhost:4000/api/settings || exit 1
+
+CMD ["npx", "tsx", "src/index.ts"]
