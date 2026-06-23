@@ -16,7 +16,7 @@ import {
     saveContact,
     updateContactPermissions
 } from './brain/memory';
-import { sendManualMessage } from './messageHandler';
+import { sendManualMessage, whatsappClient } from './messageHandler';
 import { extractAndSaveProfile } from './ai/profiler';
 
 const app = express();
