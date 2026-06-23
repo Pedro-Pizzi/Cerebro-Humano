@@ -62,6 +62,16 @@ export function ControlPanel() {
 
 
 
+  const extractProfile = async (chatId: string) => {
+    await fetch('http://localhost:4000/api/profile/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId })
+    });
+    alert('Perfil extraído com sucesso! Verifique a aba Perfis.');
+    fetchProfiles();
+  };
+
   const togglePermission = async (contactId: string, field: 'isAllowed' | 'proactivityEnabled', value: boolean) => {
     const contact = contacts.find(c => c.id === contactId);
     if (!contact) return;
@@ -171,10 +181,15 @@ export function ControlPanel() {
                           </label>
                         </td>
                         <td>
-                          <label className="toggle-switch">
-                            <input type="checkbox" checked={c.proactivityEnabled} onChange={e => togglePermission(c.id, 'proactivityEnabled', e.target.checked)} disabled={c.isGroup} style={{ opacity: c.isGroup ? 0.5 : 1 }} />
-                            <span className="toggle-slider"></span>
-                          </label>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <label className="toggle-switch">
+                              <input type="checkbox" checked={c.proactivityEnabled} onChange={e => togglePermission(c.id, 'proactivityEnabled', e.target.checked)} disabled={c.isGroup} style={{ opacity: c.isGroup ? 0.5 : 1 }} />
+                              <span className="toggle-slider"></span>
+                            </label>
+                            <button onClick={() => extractProfile(c.id)} title="Forçar Extração de Perfil" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--neon-purple)' }}>
+                              🎭
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
