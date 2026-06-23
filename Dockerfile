@@ -2,7 +2,7 @@ FROM ghcr.io/puppeteer/puppeteer:latest
 
 # Define variaveis de ambiente pro Puppeteer rodar suave no Railway
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV WA_HEADLESS=true
 ENV PORT=4000
 
@@ -12,7 +12,7 @@ USER root
 WORKDIR /app
 COPY package*.json ./
 # Instala dependencias para compilar modulos C++ e força a compilação do sqlite3
-RUN apt-get update && apt-get install -y python3 build-essential
+RUN apt-get update && apt-get install -y python3 build-essential chromium
 RUN npm install
 RUN npm rebuild sqlite3 --build-from-source
 
