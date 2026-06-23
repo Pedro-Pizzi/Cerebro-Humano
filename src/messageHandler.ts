@@ -204,7 +204,8 @@ async function flushPendingBatch(chatId: string) {
     console.log(`[Bloco] ${batch.messages.length} mensagem(ns): ${currentBlock.replace(/\n/g, ' | ')}`);
 
     try {
-        await batch.chat.sendStateTyping();
+        // sendStateTyping was removed in newer whatsapp-web.js versions
+        try { await batch.chat.sendStateTyping(); } catch { /* non-critical */ }
 
         const history = await getRecentMessages(chatId, MAX_HISTORY_ITEMS);
         const aiResponse = await generateResponse(history, currentBlock, {
