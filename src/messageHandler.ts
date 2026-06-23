@@ -118,7 +118,7 @@ async function getSenderInfo(msg: Message, isGroup: boolean): Promise<{ senderId
 
     if (cached) {
         contactMeta[senderId].lastActivity = Date.now();
-        saveContact(senderId, cached, undefined, isGroup).catch(() => {});
+        saveContact(senderId, cached, undefined, false).catch(() => {});
         return { senderId, senderName: cached, numberOnly };
     }
 
@@ -139,7 +139,8 @@ async function getSenderInfo(msg: Message, isGroup: boolean): Promise<{ senderId
         lastActivity: Date.now(),
     };
 
-    saveContact(senderId, displayName, pushname, isGroup).catch(() => {});
+    // Sender is always a person (not a group), even in group chats
+    saveContact(senderId, displayName, pushname, false).catch(() => {});
     return { senderId, senderName: displayName, numberOnly };
 }
 
