@@ -5,8 +5,8 @@ import { ManualOverride } from './components/ManualOverride';
 import { Metrics } from './components/Metrics';
 import './index.css';
 
-// Usaremos a mesma porta que configuramos no backend
-const socket = io('http://localhost:4000');
+// Em produção, a porta é a mesma de onde o front é servido.
+const socket = io();
 
 type MessageEvent = {
   chatId: string;

@@ -12,14 +12,14 @@ export function ControlPanel() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingContacts, setLoadingContacts] = useState(false);
 
-  const fetchPersona = () => fetch('http://localhost:4000/api/persona').then(res => res.json()).then(data => setPersona(data.persona || ''));
-  const fetchKnowledge = () => fetch('http://localhost:4000/api/knowledge').then(res => res.json()).then(data => setKnowledge(data.knowledge || []));
-  const fetchProfiles = () => fetch('http://localhost:4000/api/profiles').then(res => res.json()).then(data => setProfiles(data.profiles || []));
+  const fetchPersona = () => fetch('/api/persona').then(res => res.json()).then(data => setPersona(data.persona || ''));
+  const fetchKnowledge = () => fetch('/api/knowledge').then(res => res.json()).then(data => setKnowledge(data.knowledge || []));
+  const fetchProfiles = () => fetch('/api/profiles').then(res => res.json()).then(data => setProfiles(data.profiles || []));
   
   const fetchWaContacts = async () => {
     setLoadingContacts(true);
     try {
-      const res = await fetch('http://localhost:4000/api/whatsapp/contacts');
+      const res = await fetch('/api/whatsapp/contacts');
       const data = await res.json();
       setContacts(data.contacts || []);
     } catch (e) {
@@ -41,7 +41,7 @@ export function ControlPanel() {
   }, [activeTab]);
 
   const savePersona = async () => {
-    await fetch('http://localhost:4000/api/persona', {
+    await fetch('/api/persona', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: persona })
@@ -51,7 +51,7 @@ export function ControlPanel() {
 
   const addKnowledge = async () => {
     if (!newFact.trim()) return;
-    await fetch('http://localhost:4000/api/knowledge', {
+    await fetch('/api/knowledge', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fact: newFact })
@@ -63,7 +63,7 @@ export function ControlPanel() {
 
 
   const extractProfile = async (chatId: string) => {
-    await fetch('http://localhost:4000/api/profile/extract', {
+    await fetch('/api/profile/extract', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chatId })
@@ -84,7 +84,7 @@ export function ControlPanel() {
     // Update optimistically
     setContacts(prev => prev.map(c => c.id === contactId ? updated : c));
 
-    await fetch('http://localhost:4000/api/contacts/permissions', {
+    await fetch('/api/contacts/permissions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
