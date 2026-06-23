@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 
 export function Metrics() {
-  const [data, setData] = useState<any[]>([
+  const [data] = useState<any[]>([
     { name: 'Seg', mensagens: 400, tokens: 2400 },
     { name: 'Ter', mensagens: 300, tokens: 1398 },
     { name: 'Qua', mensagens: 200, tokens: 9800 },
