@@ -152,10 +152,8 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
             console.log(`[API] Usando cache: ${waContacts.length} chats ativos.`);
         } else {
             if (!contactsPromise) {
-                const timeoutMs = 600000; // 10 minutes max
+                const timeoutMs = 30000; // 30 seconds max for dashboard
                 
-                // Workaround: `getContacts()` hangs indefinitely on accounts with huge contact lists.
-                // We use `getChats()` instead, which is much faster and more reliable, and covers all active conversations.
                 const fetchPromise = whatsappClient.getChats().then(chats => {
                     return chats.map(chat => ({
                         id: { _serialized: chat.id._serialized },
@@ -179,8 +177,9 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
                         return c;
                     })
                     .catch(err => {
+                        console.error("[API] Aviso: Falha ou Timeout ao buscar do WA. Retornando array vazio para permitir carregamento do Dashboard. Erro:", err.message);
                         contactsPromise = null;
-                        throw err;
+                        return []; // Fallback to empty array
                     });
             } else {
                 console.log("[API] Aguardando busca de chats já em andamento...");
