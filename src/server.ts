@@ -154,16 +154,24 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
             if (!contactsPromise) {
                 const timeoutMs = 30000; // 30 seconds max for dashboard
                 
-                const fetchPromise = whatsappClient.getChats().then(chats => {
-                    return chats.map(chat => ({
-                        id: { _serialized: chat.id._serialized },
-                        name: chat.name,
-                        pushname: '',
-                        number: chat.id.user,
-                        isUser: !chat.isGroup,
-                        isGroup: chat.isGroup
+                const fetchPromise = (whatsappClient as any).pupPage ? (whatsappClient as any).pupPage.evaluate(() => {
+                    const rawChats = (window as any).WWebJS.getChats();
+                    return rawChats.map((c: any) => ({
+                        id: c.id,
+                        name: c.name,
+                        pushname: c.pushname,
+                        number: c.id.user,
+                        isUser: !c.isGroup,
+                        isGroup: c.isGroup
                     }));
-                });
+                }) : whatsappClient.getChats().then(chats => chats.map(chat => ({
+                    id: { _serialized: chat.id._serialized },
+                    name: chat.name,
+                    pushname: '',
+                    number: chat.id.user,
+                    isUser: !chat.isGroup,
+                    isGroup: chat.isGroup
+                })));
 
                 const timeoutPromise = new Promise<any[]>((_, reject) => 
                     setTimeout(() => reject(new Error("Timeout getting chats from WA")), timeoutMs)
