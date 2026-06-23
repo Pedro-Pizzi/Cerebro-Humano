@@ -11,7 +11,9 @@ USER root
 # Cria a pasta e da permissao
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+# Instala dependencias para compilar modulos C++ e força a compilação do sqlite3
+RUN apt-get update && apt-get install -y python3 build-essential
+RUN npm install --build-from-source=sqlite3
 
 # Copia o restante dos arquivos
 COPY . .
