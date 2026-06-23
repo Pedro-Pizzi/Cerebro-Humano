@@ -151,6 +151,7 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
             waContacts = contactsCache;
             console.log(`[API] Usando cache: ${waContacts.length} chats ativos.`);
         } else {
+            if (!contactsPromise) {
                 const timeoutMs = 45000; // 45 seconds max for dashboard
                 
                 // Complete Refactoring: Use getChats() but cleanly resolve names for @lid or missing titles
