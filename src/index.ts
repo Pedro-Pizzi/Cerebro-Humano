@@ -62,19 +62,28 @@ async function main() {
         const files = fs.readdirSync(dir);
         for (const file of files) {
             const fullPath = path.join(dir, file);
-            if (fs.statSync(fullPath).isDirectory()) {
-                walkAndClean(fullPath);
-            } else if (file.startsWith('Singleton')) {
-                try {
+            try {
+                const stat = fs.lstatSync(fullPath);
+                if (stat.isDirectory()) {
+                    walkAndClean(fullPath);
+                } else if (file.startsWith('Singleton')) {
                     fs.unlinkSync(fullPath);
                     console.log(`[Init] Limpado arquivo de lock: ${fullPath}`);
-                } catch (e) {
-                    console.error(`[Init] Erro ao deletar ${fullPath}:`, e);
                 }
+            } catch (e) {
+                console.error(`[Init] Erro ao analisar ou deletar ${fullPath}:`, e);
             }
         }
     };
-    walkAndClean(path.join(DB_DIR, '.wwebjs_auth'));
+    try {
+        console.log(`[Init] DB_DIR é: ${DB_DIR}`);
+        if (fs.existsSync(DB_DIR)) {
+            console.log(`[Init] Conteúdo de ${DB_DIR}:`, fs.readdirSync(DB_DIR));
+        }
+        walkAndClean(path.join(DB_DIR, 'session')); // wwebjs creates 'session' directly inside dataPath when dataPath is provided
+    } catch(e) {
+        console.error('[Init] Erro fatal no workaround:', e);
+    }
 
     console.log('[Init] Criando cliente WhatsApp...');
     console.log(`[Init] Chrome: ${CHROME_PATH}`);
