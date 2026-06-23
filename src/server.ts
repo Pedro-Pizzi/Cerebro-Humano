@@ -1,6 +1,7 @@
 import express from 'express';
 import { createServer } from 'http';
 import path from 'path';
+import fs from 'fs';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { 
@@ -141,18 +142,6 @@ app.post('/api/settings', async (req, res) => {
     }
 });
 
-let contactsCache: any[] | null = null;
-let contactsCacheTime = 0;
-let contactsPromise: Promise<any[]> | null = null;
-
-/** Check if the WhatsApp client is fully authenticated and the browser page is available. */
-function isClientReady(client: any): boolean {
-    if (!client) return false;
-    if (!client.info?.wid) return false;
-    if (!client.pupPage || typeof client.pupPage.evaluate !== 'function') return false;
-    return true;
-}
-
 function mapDbContacts(rows: any[]) {
     return rows.map(c => ({
         id: c.id,
@@ -164,131 +153,18 @@ function mapDbContacts(rows: any[]) {
     }));
 }
 
-/** Non-blocking background sync from WhatsApp — updates cache for next request. */
-function refreshContactsCacheAsync(client: any) {
-    if (contactsPromise) return; // already in progress
-
-    const timeoutMs = 60000; // 60s — generous for slow container bridge
-
-    const fetchPromise = client.pupPage.evaluate(() => {
-        const rawContacts = (window as any).Store.Contact.getModelsArray();
-        const results: any[] = [];
-        for (const c of rawContacts) {
-            if (!c.id || !c.id._serialized) continue;
-            if (c.id._serialized === 'status@broadcast') continue;
-            const displayName = c.name || c.pushname || c.verifiedName || c.formattedName || '';
-            if (!displayName && c.id._serialized.includes('@lid')) continue;
-            results.push({
-                id: { _serialized: c.id._serialized },
-                name: displayName || c.id.user,
-                pushname: c.pushname || '',
-                number: c.id.user,
-                isUser: !c.isGroup,
-                isGroup: c.isGroup,
-            });
-        }
-        results.sort((a: any, b: any) => a.name.localeCompare(b.name));
-        return results;
-    });
-
-    const timeoutPromise = new Promise<any[]>((_, reject) =>
-        setTimeout(() => reject(new Error("Background sync timed out")), timeoutMs)
-    );
-
-    contactsPromise = Promise.race([fetchPromise, timeoutPromise])
-        .then(c => {
-            contactsCache = c;
-            contactsCacheTime = Date.now();
-            contactsPromise = null;
-            console.log(`[API] Background WhatsApp sync: ${c.length} chats cached.`);
-            return c;
-        })
-        .catch(err => {
-            console.error("[API] Background WhatsApp sync failed:", err.message);
-            contactsPromise = null;
-            // Don't clear existing cache on failure
-            return [];
-        });
-}
-
+// Contacts are populated during message processing via saveContact() in getSenderInfo().
+// WhatsApp Store.Contact extraction via pupPage.evaluate() is too slow in the Railway
+// container (Puppeteer bridge serialization bottleneck) — DB is the reliable source.
 app.get('/api/whatsapp/contacts', async (_req, res) => {
     try {
         const savedContacts = await getContactsList();
-        const dbContacts = mapDbContacts(savedContacts);
-
-        // If WhatsApp not ready, return DB contacts instantly
-        if (!whatsappClient || !isClientReady(whatsappClient)) {
-            const reason = !whatsappClient ? 'WhatsApp client not initialized' : 'WhatsApp not fully authenticated';
-            console.log(`[API] ${reason} — returning DB contacts.`);
-            return res.json({
-                contacts: dbContacts,
-                source: 'database',
-                hint: reason,
-            });
-        }
-
-        // Return cached contacts if fresh (< 5 min), else DB contacts
-        if (contactsCache && Date.now() - contactsCacheTime < 300000) {
-            const savedMap = new Map(savedContacts.map(c => [c.id, c]));
-            const merged = mergeContacts(contactsCache, savedMap);
-            // Trigger background refresh if cache is older than 2 min
-            if (Date.now() - contactsCacheTime > 120000 && !contactsPromise) {
-                refreshContactsCacheAsync(whatsappClient);
-            }
-            return res.json({ contacts: merged, source: 'whatsapp-cache' });
-        }
-
-        // No fresh cache — return DB contacts now, refresh in background
-        if (!contactsPromise) {
-            refreshContactsCacheAsync(whatsappClient);
-        }
-
-        return res.json({
-            contacts: dbContacts,
-            source: 'database',
-            hint: 'Syncing WhatsApp contacts in background. Refresh in a few seconds.',
-        });
+        res.json({ contacts: mapDbContacts(savedContacts), source: 'database' });
     } catch (err) {
-        console.error("[API] Error in contacts endpoint:", err);
-        try {
-            const savedContacts = await getContactsList();
-            res.json({ contacts: mapDbContacts(savedContacts), source: 'database' });
-        } catch {
-            res.json({ contacts: [], source: 'none' });
-        }
+        console.error("[API] Error fetching contacts:", err);
+        res.json({ contacts: [], source: 'error' });
     }
 });
-
-/** Merge WhatsApp contacts with DB permission state. */
-function mergeContacts(waContacts: any[], savedMap: Map<string, any>): any[] {
-    const list = waContacts.filter(c => c.isUser || c.isGroup).map(c => {
-        const id = c.id._serialized;
-        const saved = savedMap.get(id);
-        return {
-            id,
-            name: c.name || c.pushname || c.number,
-            pushname: c.pushname,
-            isGroup: c.isGroup,
-            isAllowed: saved ? saved.is_allowed === 1 : false,
-            proactivityEnabled: saved ? saved.proactivity_enabled === 1 : false,
-        };
-    });
-
-    // Add DB-only contacts that don't have active WhatsApp chats
-    for (const [id, saved] of savedMap) {
-        if (!list.find(x => x.id === id)) {
-            list.push({
-                id,
-                name: saved.first_name || id,
-                pushname: saved.pushname || '',
-                isGroup: saved.is_group === 1,
-                isAllowed: saved.is_allowed === 1,
-                proactivityEnabled: saved.proactivity_enabled === 1,
-            });
-        }
-    }
-    return list;
-}
 
 app.post('/api/contacts/permissions', async (req, res) => {
     try {
@@ -305,9 +181,29 @@ app.post('/api/contacts/permissions', async (req, res) => {
 
 // Servir o Frontend (Dashboard) estaticamente se a pasta dist existir
 const dashboardPath = path.join(__dirname, '../dashboard/dist');
-app.use(express.static(dashboardPath));
-app.use((req, res) => {
-    res.sendFile(path.join(dashboardPath, 'index.html'));
+const dashboardIndex = path.join(dashboardPath, 'index.html');
+
+// Pre-check that dashboard exists
+const dashboardBuilt = fs.existsSync(dashboardIndex);
+if (dashboardBuilt) {
+    console.log(`[Dashboard] Serving static files from ${dashboardPath}`);
+    app.use(express.static(dashboardPath, {
+        maxAge: '1h',
+        immutable: true,
+    }));
+} else {
+    console.warn(`[Dashboard] dist/ not found at ${dashboardPath} — run 'npm run build' in dashboard/ first`);
+}
+
+// SPA fallback — only for non-API routes
+app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+        return next();
+    }
+    if (!dashboardBuilt) {
+        return res.status(503).send('Dashboard not built. Run: cd dashboard && npm run build');
+    }
+    res.sendFile(dashboardIndex);
 });
 
 io.on('connection', (socket) => {
