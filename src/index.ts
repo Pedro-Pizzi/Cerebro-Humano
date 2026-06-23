@@ -22,7 +22,7 @@ type RuntimeState = {
     ready: boolean;
 };
 
-const CHROME_PATH = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const CHROME_PATH = process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const READY_WATCHDOG_MS = readNumberEnv('READY_WATCHDOG_MS', 60000);
 const READY_RETRY_AFTER_AUTH_MS = readNumberEnv('READY_RETRY_AFTER_AUTH_MS', 25000);
 const MAX_READY_RECOVERY_ATTEMPTS = readNumberEnv('MAX_READY_RECOVERY_ATTEMPTS', 2);
