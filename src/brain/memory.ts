@@ -95,6 +95,14 @@ export async function initMemory(): Promise<void> {
                 // Ensure default row exists
                 db.run(`INSERT OR IGNORE INTO settings (id, allowed_numbers, allowed_groups, proactivity_enabled) VALUES (1, '', '', 1)`);
 
+                // Migration: fix contacts incorrectly saved as groups (sender bug pre-fix)
+                // Only @g.us IDs are real groups; @lid/@c.us/@newsletter are individuals
+                db.run(`UPDATE contacts SET is_group = 0 WHERE id NOT LIKE '%@g.us' AND is_group = 1`, (err) => {
+                    if (err) {
+                        console.error('[Memory] Migration error:', err.message);
+                    }
+                });
+
                 resolve();
             });
         });
