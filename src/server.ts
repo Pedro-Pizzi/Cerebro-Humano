@@ -149,26 +149,26 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
 
         if (contactsCache && Date.now() - contactsCacheTime < 60000) {
             waContacts = contactsCache;
-            console.log(`[API] Usando cache: ${waContacts.length} contatos brutos.`);
+            console.log(`[API] Usando cache: ${waContacts.length} chats ativos.`);
         } else {
             if (!contactsPromise) {
                 const timeoutMs = 600000; // 10 minutes max
                 
-                // Lightweight extraction to avoid Puppeteer serialization timeouts with huge contact lists
-                const fetchPromise = (whatsappClient as any).pupPage ? (whatsappClient as any).pupPage.evaluate(() => {
-                    const rawContacts = (window as any).WWebJS.getContacts();
-                    return rawContacts.map((c: any) => ({
-                        id: c.id,
-                        name: c.name,
-                        pushname: c.pushname,
-                        number: c.userid || c.number,
-                        isUser: c.isUser,
-                        isGroup: c.isGroup
+                // Workaround: `getContacts()` hangs indefinitely on accounts with huge contact lists.
+                // We use `getChats()` instead, which is much faster and more reliable, and covers all active conversations.
+                const fetchPromise = whatsappClient.getChats().then(chats => {
+                    return chats.map(chat => ({
+                        id: { _serialized: chat.id._serialized },
+                        name: chat.name,
+                        pushname: '',
+                        number: chat.id.user,
+                        isUser: !chat.isGroup,
+                        isGroup: chat.isGroup
                     }));
-                }) : whatsappClient.getContacts();
+                });
 
                 const timeoutPromise = new Promise<any[]>((_, reject) => 
-                    setTimeout(() => reject(new Error("Timeout getting contacts from WA")), timeoutMs)
+                    setTimeout(() => reject(new Error("Timeout getting chats from WA")), timeoutMs)
                 );
                 
                 contactsPromise = Promise.race([fetchPromise, timeoutPromise])
@@ -183,10 +183,10 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
                         throw err;
                     });
             } else {
-                console.log("[API] Aguardando busca de contatos já em andamento...");
+                console.log("[API] Aguardando busca de chats já em andamento...");
             }
             waContacts = await contactsPromise;
-            console.log(`[API] Encontrados ${waContacts.length} contatos brutos.`);
+            console.log(`[API] Encontrados ${waContacts.length} chats ativos.`);
         }
 
         const savedContacts = await getContactsList();
@@ -205,6 +205,22 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
                 profilePic: '' // Can be loaded async if needed later
             };
         });
+
+        // Ensure previously configured contacts appear in the list even if they don't have an active chat
+        for (const saved of savedContacts) {
+            if (!list.find(x => x.id === saved.id)) {
+                list.push({
+                    id: saved.id,
+                    name: saved.name || saved.id,
+                    pushname: '',
+                    isGroup: saved.id.includes('@g.us'),
+                    isAllowed: saved.is_allowed === 1,
+                    proactivityEnabled: saved.proactivity_enabled === 1,
+                    profilePic: ''
+                });
+            }
+        }
+
         res.json({ contacts: list });
     } catch (err) {
         console.error("[API] Erro ao buscar contatos:", err);
