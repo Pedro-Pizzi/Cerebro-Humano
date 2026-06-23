@@ -104,6 +104,7 @@ async function main() {
         puppeteer: {
             headless: HEADLESS,
             executablePath: CHROME_PATH,
+            protocolTimeout: 0,
             defaultViewport: null,
             args: [
                 '--no-sandbox',
