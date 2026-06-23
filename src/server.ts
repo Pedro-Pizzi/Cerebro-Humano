@@ -12,7 +12,9 @@ import {
     getContactsList,
     getAllChatProfiles,
     getSettings,
-    updateSettings
+    updateSettings,
+    saveContact,
+    updateContactPermissions
 } from './brain/memory';
 import { sendManualMessage } from './messageHandler';
 import { extractAndSaveProfile } from './ai/profiler';
@@ -125,6 +127,45 @@ app.get('/api/settings', async (req, res) => {
 app.post('/api/settings', async (req, res) => {
     try {
         await updateSettings(req.body);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: String(err) });
+    }
+});
+
+app.get('/api/whatsapp/contacts', async (req, res) => {
+    try {
+        if (!whatsappClient) return res.status(400).json({ error: "WhatsApp offline" });
+        const waContacts = await whatsappClient.getContacts();
+        const savedContacts = await getContactsList();
+        const savedMap = new Map(savedContacts.map(c => [c.id, c]));
+
+        const list = waContacts.filter(c => c.isUser || c.isGroup).map(c => {
+            const id = c.id._serialized;
+            const saved = savedMap.get(id);
+            return {
+                id,
+                name: c.name || c.pushname || c.number,
+                pushname: c.pushname,
+                isGroup: c.isGroup,
+                isAllowed: saved ? saved.is_allowed === 1 : false,
+                proactivityEnabled: saved ? saved.proactivity_enabled === 1 : false,
+                profilePic: '' // Can be loaded async if needed later
+            };
+        });
+        res.json({ contacts: list });
+    } catch (err) {
+        res.status(500).json({ error: String(err) });
+    }
+});
+
+app.post('/api/contacts/permissions', async (req, res) => {
+    try {
+        const { id, isAllowed, proactivityEnabled, name, isGroup } = req.body;
+        // Salva/Cria o contato se não existir
+        await saveContact(id, name || id, undefined, isGroup);
+        // Atualiza permissões
+        await updateContactPermissions(id, isAllowed, proactivityEnabled);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: String(err) });

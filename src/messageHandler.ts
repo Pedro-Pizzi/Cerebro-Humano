@@ -6,7 +6,7 @@ import { extractAndSaveProfile } from './ai/profiler';
 
 export let whatsappClient: Client | null = null;
 import { transcribeAudio, describeImage } from './ai/multimodal';
-import { getSettings } from './brain/memory';
+import { getSettings, getAllAllowedContactsIds } from './brain/memory';
 export function setWhatsappClient(client: Client) {
     whatsappClient = client;
 }
@@ -117,15 +117,18 @@ async function getSenderInfo(msg: Message, isGroup: boolean): Promise<{ senderId
 
     if (cached) {
         contactMeta[senderId].lastActivity = Date.now();
-        saveContact(senderId, cached).catch(() => {});
+        // Fire & forget
+        saveContact(senderId, cached, undefined, isGroup).catch(() => {});
         return { senderId, senderName: cached, numberOnly };
     }
 
     let firstName = numberOnly;
+    let pushname: string | undefined = undefined;
     try {
         const contact = await msg.getContact();
         const contactAny = contact as any;
-        firstName = firstNameFrom(contactAny.pushname || contact.name || contact.shortName || contact.number) || numberOnly;
+        pushname = contactAny.pushname;
+        firstName = firstNameFrom(pushname || contact.name || contact.shortName || contact.number) || numberOnly;
     } catch {
         // fall back to number
     }
@@ -135,7 +138,7 @@ async function getSenderInfo(msg: Message, isGroup: boolean): Promise<{ senderId
         lastActivity: Date.now(),
     };
 
-    saveContact(senderId, firstName).catch(() => {});
+    saveContact(senderId, firstName, pushname, isGroup).catch(() => {});
     return { senderId, senderName: firstName, numberOnly };
 }
 
@@ -270,22 +273,16 @@ export async function handleIncomingMessage(msg: Message) {
 
     if (!textBody) return;
 
-    const settings = await getSettings();
+    const allowedIds = await getAllAllowedContactsIds();
+    const isAllowed = allowedIds.includes(chatId);
 
-    if (isGroup) {
-        const allowedGroups = settings.allowed_groups ? settings.allowed_groups.split(',').map(n => n.trim()).filter(Boolean) : [];
-        const serializedGroupId = (chat as any).id?._serialized;
-        if (allowedGroups.length > 0 && !allowedGroups.includes(chat.name) && !allowedGroups.includes(serializedGroupId)) {
-            return;
-        }
-    } else {
-        const allowedNumbers = settings.allowed_numbers ? settings.allowed_numbers.split(',').map(n => n.trim()).filter(Boolean) : [];
-        const numberOnly = msg.from.split('@')[0];
-
-        if (allowedNumbers.length > 0 && !allowedNumbers.includes(numberOnly)) {
-            console.log(`[Bloqueado] Mensagem de numero nao autorizado: ${numberOnly}`);
-            return;
-        }
+    // Se a lista de permissões tiver ALGUÉM, e este chat não estiver permitido, nós o ignoramos.
+    // Se a lista estiver VAZIA (o que significa que ninguém foi permitido), nós permitimos todos,
+    // ou talvez seja melhor a política "deny all" por default se o DB já existir?
+    // Vamos fazer: se a tabela de allowedIds não contiver este chatId, ignoramos.
+    // Mas para manter compatibilidade com antigos setups: se não houver ninguem configurado, libera pra todos.
+    if (allowedIds.length > 0 && !isAllowed) {
+        return;
     }
 
     const sender = await getSenderInfo(msg, isGroup);

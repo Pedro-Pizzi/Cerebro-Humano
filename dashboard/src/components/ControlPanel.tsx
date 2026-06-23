@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-type Tab = 'persona' | 'knowledge' | 'contacts' | 'profiles' | 'settings';
+type Tab = 'persona' | 'knowledge' | 'permissions' | 'profiles';
 
 export function ControlPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('persona');
@@ -9,21 +9,36 @@ export function ControlPanel() {
   const [newFact, setNewFact] = useState('');
   const [contacts, setContacts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
-  const [settings, setSettings] = useState({ allowed_numbers: '', allowed_groups: '', proactivity_enabled: true });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loadingContacts, setLoadingContacts] = useState(false);
 
   const fetchPersona = () => fetch('http://localhost:4000/api/persona').then(res => res.json()).then(data => setPersona(data.persona || ''));
   const fetchKnowledge = () => fetch('http://localhost:4000/api/knowledge').then(res => res.json()).then(data => setKnowledge(data.knowledge || []));
-  const fetchContacts = () => fetch('http://localhost:4000/api/contacts').then(res => res.json()).then(data => setContacts(data.contacts || []));
   const fetchProfiles = () => fetch('http://localhost:4000/api/profiles').then(res => res.json()).then(data => setProfiles(data.profiles || []));
-  const fetchSettings = () => fetch('http://localhost:4000/api/settings').then(res => res.json()).then(data => setSettings(data.settings));
+  
+  const fetchWaContacts = async () => {
+    setLoadingContacts(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/whatsapp/contacts');
+      const data = await res.json();
+      setContacts(data.contacts || []);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoadingContacts(false);
+  };
 
   useEffect(() => {
     fetchPersona();
     fetchKnowledge();
-    fetchContacts();
     fetchProfiles();
-    fetchSettings();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'permissions') {
+      fetchWaContacts();
+    }
+  }, [activeTab]);
 
   const savePersona = async () => {
     await fetch('http://localhost:4000/api/persona', {
@@ -55,23 +70,38 @@ export function ControlPanel() {
     fetchProfiles();
   };
 
-  const saveSettings = async () => {
-    await fetch('http://localhost:4000/api/settings', {
+  const togglePermission = async (contactId: string, field: 'isAllowed' | 'proactivityEnabled', value: boolean) => {
+    const contact = contacts.find(c => c.id === contactId);
+    if (!contact) return;
+    
+    const updated = {
+      ...contact,
+      [field]: value
+    };
+
+    // Update optimistically
+    setContacts(prev => prev.map(c => c.id === contactId ? updated : c));
+
+    await fetch('http://localhost:4000/api/contacts/permissions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings)
+      body: JSON.stringify({
+        id: updated.id,
+        name: updated.name,
+        isGroup: updated.isGroup,
+        isAllowed: updated.isAllowed,
+        proactivityEnabled: updated.proactivityEnabled
+      })
     });
-    alert('Configurações salvas!');
   };
 
   return (
     <aside className="sidebar-right panel">
       <div className="tabs" style={{ display: 'flex', flexWrap: 'wrap' }}>
+        <button className={activeTab === 'permissions' ? 'active' : ''} onClick={() => setActiveTab('permissions')}>Permissões</button>
         <button className={activeTab === 'persona' ? 'active' : ''} onClick={() => setActiveTab('persona')}>Persona</button>
         <button className={activeTab === 'knowledge' ? 'active' : ''} onClick={() => setActiveTab('knowledge')}>Conhecimento</button>
-        <button className={activeTab === 'contacts' ? 'active' : ''} onClick={() => setActiveTab('contacts')}>Contatos</button>
-        <button className={activeTab === 'profiles' ? 'active' : ''} onClick={() => setActiveTab('profiles')}>Perfis (Mimetismo)</button>
-        <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>Configurações</button>
+        <button className={activeTab === 'profiles' ? 'active' : ''} onClick={() => setActiveTab('profiles')}>Perfis</button>
       </div>
 
       <div className="tab-content" style={{ marginTop: '15px' }}>
@@ -108,20 +138,58 @@ export function ControlPanel() {
           </div>
         )}
 
-        {activeTab === 'contacts' && (
+        {activeTab === 'permissions' && (
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <h3 className="glowing-text pink">Mapeamento Social</h3>
-            <ul style={{ marginTop: '15px', listStyle: 'none', padding: 0, overflowY: 'auto', flex: 1 }}>
-              {contacts.map((c, i) => (
-                <li key={i} style={{ padding: '8px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <strong style={{ color: 'var(--neon-pink)' }}>{c.pushname || c.first_name || c.chat_id}</strong>
-                    <button onClick={() => extractProfile(c.chat_id)} style={{ fontSize: '0.7rem', background: 'var(--neon-purple)', color: '#fff', border: 'none', cursor: 'pointer', padding: '2px 5px' }}>Extrair Perfil</button>
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Última vez: {new Date(c.last_activity).toLocaleString()}</div>
-                </li>
-              ))}
-            </ul>
+            <h3 className="glowing-text cyan">Controle de Acesso (ACL)</h3>
+            <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginBottom: '15px' }}>Gerencie quem o bot pode responder e com quem ele pode puxar assunto ativamente.</p>
+            
+            <input 
+              type="text"
+              className="search-input"
+              placeholder="Buscar contato ou grupo..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+
+            <div style={{ overflowY: 'auto', flex: 1, marginTop: '15px' }}>
+              {loadingContacts ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-dim)' }}>
+                  <span className="spinner"></span> Sincronizando agenda do WhatsApp...
+                </div>
+              ) : (
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Responder</th>
+                      <th>Proativo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contacts.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())).map(c => (
+                      <tr key={c.id}>
+                        <td>
+                          <div style={{ fontWeight: '500', color: '#fff' }}>{c.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{c.isGroup ? 'Grupo' : 'Contato'}</div>
+                        </td>
+                        <td>
+                          <label className="toggle-switch">
+                            <input type="checkbox" checked={c.isAllowed} onChange={e => togglePermission(c.id, 'isAllowed', e.target.checked)} />
+                            <span className="toggle-slider"></span>
+                          </label>
+                        </td>
+                        <td>
+                          <label className="toggle-switch">
+                            <input type="checkbox" checked={c.proactivityEnabled} onChange={e => togglePermission(c.id, 'proactivityEnabled', e.target.checked)} disabled={c.isGroup} style={{ opacity: c.isGroup ? 0.5 : 1 }} />
+                            <span className="toggle-slider"></span>
+                          </label>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         )}
 
@@ -140,42 +208,7 @@ export function ControlPanel() {
           </div>
         )}
 
-        {activeTab === 'settings' && (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <h3 className="glowing-text">Controle Total</h3>
-            
-            <div style={{ marginTop: '15px' }}>
-              <label style={{ display: 'block', color: 'var(--neon-cyan)', marginBottom: '5px' }}>Proatividade (Puxar Assunto):</label>
-              <button 
-                onClick={() => setSettings(s => ({ ...s, proactivity_enabled: !s.proactivity_enabled }))}
-                style={{ padding: '8px 15px', background: settings.proactivity_enabled ? 'var(--neon-cyan)' : 'transparent', color: settings.proactivity_enabled ? '#000' : 'var(--neon-cyan)', border: '1px solid var(--neon-cyan)', cursor: 'pointer', fontWeight: 'bold' }}>
-                {settings.proactivity_enabled ? 'LIGADO' : 'DESLIGADO'}
-              </button>
-            </div>
 
-            <div style={{ marginTop: '15px' }}>
-              <label style={{ display: 'block', color: 'var(--neon-purple)', marginBottom: '5px' }}>Números Permitidos (separados por vírgula):</label>
-              <input 
-                value={settings.allowed_numbers}
-                onChange={e => setSettings(s => ({ ...s, allowed_numbers: e.target.value }))}
-                placeholder="Ex: 5511999999999, 5511888888888 (Vazio = Todos)"
-                style={{ width: '100%', padding: '8px', background: 'rgba(0,0,0,0.5)', color: '#fff', border: '1px solid var(--neon-purple)' }}
-              />
-            </div>
-
-            <div style={{ marginTop: '15px' }}>
-              <label style={{ display: 'block', color: 'var(--neon-pink)', marginBottom: '5px' }}>Grupos Permitidos (separados por vírgula):</label>
-              <input 
-                value={settings.allowed_groups}
-                onChange={e => setSettings(s => ({ ...s, allowed_groups: e.target.value }))}
-                placeholder="Ex: Nome do Grupo (Vazio = Todos)"
-                style={{ width: '100%', padding: '8px', background: 'rgba(0,0,0,0.5)', color: '#fff', border: '1px solid var(--neon-pink)' }}
-              />
-            </div>
-
-            <button onClick={saveSettings} style={{ marginTop: '20px', padding: '10px', background: '#fff', color: '#000', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>SALVAR CONFIGURAÇÕES</button>
-          </div>
-        )}
       </div>
       
       <style>{`

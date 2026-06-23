@@ -19,9 +19,19 @@ export async function initMemory(): Promise<void> {
                     CREATE TABLE IF NOT EXISTS contacts (
                         id TEXT PRIMARY KEY,
                         first_name TEXT,
+                        pushname TEXT,
+                        is_group INTEGER DEFAULT 0,
+                        is_allowed INTEGER DEFAULT 0,
+                        proactivity_enabled INTEGER DEFAULT 0,
                         last_activity INTEGER
                     )
                 `);
+
+                // Migrations seguras caso a tabela já exista com a estrutura antiga
+                db.run(`ALTER TABLE contacts ADD COLUMN pushname TEXT`, () => {});
+                db.run(`ALTER TABLE contacts ADD COLUMN is_group INTEGER DEFAULT 0`, () => {});
+                db.run(`ALTER TABLE contacts ADD COLUMN is_allowed INTEGER DEFAULT 0`, () => {});
+                db.run(`ALTER TABLE contacts ADD COLUMN proactivity_enabled INTEGER DEFAULT 0`, () => {});
 
                 db.run(`
                     CREATE TABLE IF NOT EXISTS messages (
@@ -88,16 +98,34 @@ export async function initMemory(): Promise<void> {
     });
 }
 
-export function saveContact(id: string, firstName: string): Promise<void> {
+export function saveContact(
+    id: string, 
+    firstName: string, 
+    pushname?: string, 
+    isGroup: boolean = false
+): Promise<void> {
     return new Promise((resolve, reject) => {
         const stmt = db.prepare(`
-            INSERT INTO contacts (id, first_name, last_activity) 
-            VALUES (?, ?, ?) 
+            INSERT INTO contacts (id, first_name, pushname, is_group, last_activity) 
+            VALUES (?, ?, ?, ?, ?) 
             ON CONFLICT(id) DO UPDATE SET 
-                first_name = excluded.first_name, 
+                first_name = excluded.first_name,
+                pushname = excluded.pushname,
+                is_group = excluded.is_group,
                 last_activity = excluded.last_activity
         `);
-        stmt.run([id, firstName, Date.now()], (err) => {
+        stmt.run([id, firstName, pushname || null, isGroup ? 1 : 0, Date.now()], (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+        stmt.finalize();
+    });
+}
+
+export function updateContactPermissions(id: string, isAllowed: boolean, proactivityEnabled: boolean): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const stmt = db.prepare(`UPDATE contacts SET is_allowed = ?, proactivity_enabled = ? WHERE id = ?`);
+        stmt.run([isAllowed ? 1 : 0, proactivityEnabled ? 1 : 0, id], (err) => {
             if (err) reject(err);
             else resolve();
         });
@@ -219,6 +247,24 @@ export function getContactsList(): Promise<any[]> {
         db.all(`SELECT * FROM contacts ORDER BY last_activity DESC`, [], (err, rows: any[]) => {
             if (err) reject(err);
             else resolve(rows);
+        });
+    });
+}
+
+export function getAllAllowedContactsIds(): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+        db.all(`SELECT id FROM contacts WHERE is_allowed = 1`, [], (err, rows: any[]) => {
+            if (err) reject(err);
+            else resolve(rows.map(r => r.id));
+        });
+    });
+}
+
+export function getAllProactiveContactsIds(): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+        db.all(`SELECT id FROM contacts WHERE proactivity_enabled = 1 AND is_allowed = 1 AND is_group = 0`, [], (err, rows: any[]) => {
+            if (err) reject(err);
+            else resolve(rows.map(r => r.id));
         });
     });
 }

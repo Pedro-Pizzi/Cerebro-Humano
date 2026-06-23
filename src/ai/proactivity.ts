@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { getContactsList, getRecentMessages, getSettings } from '../brain/memory';
+import { getContactsList, getRecentMessages, getAllProactiveContactsIds } from '../brain/memory';
 import { sendManualMessage } from '../messageHandler';
 import { generateResponse } from '../ai';
 
@@ -12,13 +12,11 @@ export function startProactivityCron() {
         console.log('[Proatividade] Verificando contatos para puxar assunto...');
         
         try {
-            const settings = await getSettings();
-            if (!settings.proactivity_enabled) {
-                console.log('[Proatividade] Rotina desativada nas configurações.');
+            const proactiveIds = await getAllProactiveContactsIds();
+            if (proactiveIds.length === 0) {
+                console.log('[Proatividade] Rotina desativada ou nenhum contato com proatividade habilitada.');
                 return;
             }
-
-            const allowedNumbers = settings.allowed_numbers ? settings.allowed_numbers.split(',').map(n => n.trim()).filter(Boolean) : [];
 
             const contacts = await getContactsList();
             const now = Date.now();
@@ -30,8 +28,7 @@ export function startProactivityCron() {
                 const elapsed = now - c.last_activity;
                 if (elapsed <= ONE_DAY || c.chat_id.includes('@g.us')) return false;
 
-                const numberOnly = c.chat_id.split('@')[0];
-                if (allowedNumbers.length > 0 && !allowedNumbers.includes(numberOnly)) {
+                if (!proactiveIds.includes(c.chat_id)) {
                     return false;
                 }
 
