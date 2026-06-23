@@ -135,8 +135,13 @@ app.post('/api/settings', async (req, res) => {
 
 app.get('/api/whatsapp/contacts', async (req, res) => {
     try {
-        if (!whatsappClient) return res.status(400).json({ error: "WhatsApp offline" });
+        if (!whatsappClient) {
+            console.log("[API] /api/whatsapp/contacts -> WhatsApp offline");
+            return res.status(400).json({ error: "WhatsApp offline" });
+        }
+        console.log("[API] Buscando contatos do WhatsApp...");
         const waContacts = await whatsappClient.getContacts();
+        console.log(`[API] Encontrados ${waContacts.length} contatos brutos.`);
         const savedContacts = await getContactsList();
         const savedMap = new Map(savedContacts.map(c => [c.id, c]));
 
