@@ -153,7 +153,20 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
         } else {
             if (!contactsPromise) {
                 const timeoutMs = 600000; // 10 minutes max
-                const fetchPromise = whatsappClient.getContacts();
+                
+                // Lightweight extraction to avoid Puppeteer serialization timeouts with huge contact lists
+                const fetchPromise = (whatsappClient as any).pupPage ? (whatsappClient as any).pupPage.evaluate(() => {
+                    const rawContacts = (window as any).WWebJS.getContacts();
+                    return rawContacts.map((c: any) => ({
+                        id: c.id,
+                        name: c.name,
+                        pushname: c.pushname,
+                        number: c.userid || c.number,
+                        isUser: c.isUser,
+                        isGroup: c.isGroup
+                    }));
+                }) : whatsappClient.getContacts();
+
                 const timeoutPromise = new Promise<any[]>((_, reject) => 
                     setTimeout(() => reject(new Error("Timeout getting contacts from WA")), timeoutMs)
                 );
