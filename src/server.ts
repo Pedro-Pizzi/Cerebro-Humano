@@ -151,31 +151,45 @@ app.get('/api/whatsapp/contacts', async (req, res) => {
             waContacts = contactsCache;
             console.log(`[API] Usando cache: ${waContacts.length} chats ativos.`);
         } else {
-            if (!contactsPromise) {
-                const timeoutMs = 30000; // 30 seconds max for dashboard
+                const timeoutMs = 45000; // 45 seconds max for dashboard
                 
-                const fetchPromise = (whatsappClient as any).pupPage ? (whatsappClient as any).pupPage.evaluate(() => {
-                    const rawChats = (window as any).WWebJS.getChats();
-                    return rawChats.map((c: any) => {
-                        let contact = c.contact || {};
-                        let displayName = c.name || c.formattedTitle || contact.name || contact.pushname || contact.verifiedName || '';
-                        return {
-                            id: c.id,
-                            name: displayName,
-                            pushname: contact.pushname || '',
-                            number: c.id.user,
-                            isUser: !c.isGroup,
-                            isGroup: c.isGroup
-                        };
-                    });
-                }) : whatsappClient.getChats().then(chats => chats.map(chat => ({
-                    id: { _serialized: chat.id._serialized },
-                    name: chat.name,
-                    pushname: '',
-                    number: chat.id.user,
-                    isUser: !chat.isGroup,
-                    isGroup: chat.isGroup
-                })));
+                // Complete Refactoring: Use getChats() but cleanly resolve names for @lid or missing titles
+                const fetchPromise = whatsappClient.getChats().then(async (chats) => {
+                    // Limit to 200 most recent chats to prevent massive loading times
+                    const recentChats = chats.slice(0, 200);
+                    const results: any[] = [];
+                    
+                    // Fetch contacts concurrently to resolve names
+                    await Promise.all(recentChats.map(async (chat) => {
+                        try {
+                            if (chat.id._serialized === 'status@broadcast') return;
+                            
+                            let displayName = chat.name;
+                            
+                            // If name is an ID or @lid, we must fetch the real contact to get the pushname
+                            if (!displayName || displayName === chat.id.user || chat.id._serialized.includes('@lid')) {
+                                try {
+                                    const contact = await chat.getContact();
+                                    displayName = contact.name || contact.pushname || contact.verifiedName || displayName;
+                                } catch (err) {
+                                    // Ignore individual contact fetch errors
+                                }
+                            }
+                            
+                            results.push({
+                                id: { _serialized: chat.id._serialized },
+                                name: displayName || chat.id.user,
+                                pushname: '',
+                                number: chat.id.user,
+                                isUser: !chat.isGroup,
+                                isGroup: chat.isGroup
+                            });
+                        } catch (e) {
+                            // Ignore chat mapping errors
+                        }
+                    }));
+                    return results;
+                });
 
                 const timeoutPromise = new Promise<any[]>((_, reject) => 
                     setTimeout(() => reject(new Error("Timeout getting chats from WA")), timeoutMs)
