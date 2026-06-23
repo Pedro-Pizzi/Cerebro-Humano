@@ -93,6 +93,10 @@ async function main() {
     client.on('qr', (qr) => {
         console.log('Escaneie este QR Code no seu WhatsApp:');
         qrcode.generate(qr, { small: true });
+        
+        console.log('\n--- SE O QR CODE ACIMA ESTIVER DISTORCIDO NO LOG, CLIQUE NO LINK ABAIXO ---');
+        console.log(`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qr)}`);
+        console.log('---------------------------------------------------------------------------\n');
     });
 
     client.on('ready', () => {
