@@ -60,15 +60,7 @@ export function ControlPanel() {
     fetchKnowledge();
   };
 
-  const extractProfile = async (chatId: string) => {
-    await fetch('http://localhost:4000/api/profile/extract', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId })
-    });
-    alert('Perfil extraído com sucesso!');
-    fetchProfiles();
-  };
+
 
   const togglePermission = async (contactId: string, field: 'isAllowed' | 'proactivityEnabled', value: boolean) => {
     const contact = contacts.find(c => c.id === contactId);
