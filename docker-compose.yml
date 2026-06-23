@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  cerebro:
+    build: .
+    container_name: cerebro-bot
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./brain.sqlite:/app/brain.sqlite
+      - ./.wwebjs_auth:/app/.wwebjs_auth
