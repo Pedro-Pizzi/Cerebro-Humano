@@ -158,7 +158,7 @@ function mapDbContacts(rows: any[]) {
         id: c.id,
         name: c.first_name || c.id,
         pushname: c.pushname || '',
-        isGroup: c.id.includes('@g.us'),
+        isGroup: c.is_group === 1,
         isAllowed: c.is_allowed === 1,
         proactivityEnabled: c.proactivity_enabled === 1,
     }));
@@ -281,7 +281,7 @@ function mergeContacts(waContacts: any[], savedMap: Map<string, any>): any[] {
                 id,
                 name: saved.first_name || id,
                 pushname: saved.pushname || '',
-                isGroup: id.includes('@g.us'),
+                isGroup: saved.is_group === 1,
                 isAllowed: saved.is_allowed === 1,
                 proactivityEnabled: saved.proactivity_enabled === 1,
             });
