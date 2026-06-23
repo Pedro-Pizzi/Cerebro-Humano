@@ -13,7 +13,8 @@ WORKDIR /app
 COPY package*.json ./
 # Instala dependencias para compilar modulos C++ e força a compilação do sqlite3
 RUN apt-get update && apt-get install -y python3 build-essential
-RUN npm install --build-from-source=sqlite3
+RUN npm install
+RUN npm rebuild sqlite3 --build-from-source
 
 # Copia o restante dos arquivos
 COPY . .
