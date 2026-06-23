@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_URL } from '../config';
 
 export function KnowledgeView() {
   const [facts, setFacts] = useState<string[]>([]);
@@ -7,7 +8,7 @@ export function KnowledgeView() {
   const [adding, setAdding] = useState(false);
 
   const fetchFacts = () => {
-    fetch('/api/knowledge')
+    fetch(`${API_URL}/api/knowledge`)
       .then((res) => res.json())
       .then((data) => setFacts(data.knowledge || []))
       .finally(() => setLoading(false));
@@ -18,7 +19,7 @@ export function KnowledgeView() {
   const addFact = async () => {
     if (!newFact.trim()) return;
     setAdding(true);
-    await fetch('/api/knowledge', {
+    await fetch(`${API_URL}/api/knowledge`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fact: newFact.trim() }),

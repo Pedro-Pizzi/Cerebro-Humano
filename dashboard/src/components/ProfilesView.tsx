@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_URL } from '../config';
 
 type Profile = {
   chat_id: string;
@@ -13,7 +14,7 @@ export function ProfilesView() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/profiles')
+    fetch(`${API_URL}/api/profiles`)
       .then((res) => res.json())
       .then((data) => setProfiles(data.profiles || []))
       .finally(() => setLoading(false));

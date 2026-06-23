@@ -21,14 +21,27 @@ import { sendManualMessage, whatsappClient } from './messageHandler';
 import { extractAndSaveProfile } from './ai/profiler';
 
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: [
+        'https://dashboard-murex-five-70.vercel.app',
+        'https://cerebro-humano-production.up.railway.app',
+        /^http:\/\/localhost(:\d+)?$/,
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+}));
 app.use(express.json());
 
 const httpServer = createServer(app);
 export const io = new Server(httpServer, {
     cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
+        origin: [
+            'https://dashboard-murex-five-70.vercel.app',
+            'https://cerebro-humano-production.up.railway.app',
+            /^http:\/\/localhost(:\d+)?$/,
+        ],
+        methods: ['GET', 'POST'],
+        credentials: true,
     }
 });
 

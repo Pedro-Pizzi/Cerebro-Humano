@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_URL } from '../config';
 
 export function PersonaView() {
   const [persona, setPersona] = useState('');
@@ -8,7 +9,7 @@ export function PersonaView() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/persona')
+    fetch(`${API_URL}/api/persona`)
       .then((res) => res.json())
       .then((data) => setPersona(data.persona || ''))
       .catch(() => setError('Failed to load persona'))
@@ -19,7 +20,7 @@ export function PersonaView() {
     setSaving(true);
     setError(null);
     try {
-      await fetch('/api/persona', {
+      await fetch(`${API_URL}/api/persona`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: persona }),

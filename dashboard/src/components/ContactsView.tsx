@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_URL } from '../config';
 
 type Contact = {
   id: string;
@@ -18,7 +19,7 @@ export function ContactsView() {
 
   const fetchDBContacts = useCallback(async () => {
     try {
-      const res = await fetch('/api/contacts');
+      const res = await fetch(`${API_URL}/api/contacts`);
       const data = await res.json();
       setContacts(data.contacts || []);
     } catch {
@@ -30,7 +31,7 @@ export function ContactsView() {
     setSyncing(true);
     setError(null);
     try {
-      const res = await fetch('/api/whatsapp/contacts');
+      const res = await fetch(`${API_URL}/api/whatsapp/contacts`);
       const data = await res.json();
       if (data.error) {
         setError(data.error);
@@ -54,7 +55,7 @@ export function ContactsView() {
     const updated = { ...contact, [field]: value };
     setContacts((prev) => prev.map((c) => (c.id === contact.id ? updated : c)));
 
-    await fetch('/api/contacts/permissions', {
+    await fetch(`${API_URL}/api/contacts/permissions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -68,7 +69,7 @@ export function ContactsView() {
   };
 
   const extractProfile = async (chatId: string) => {
-    await fetch('/api/profile/extract', {
+    await fetch(`${API_URL}/api/profile/extract`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chatId }),

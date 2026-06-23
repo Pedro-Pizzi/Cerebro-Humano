@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { API_URL } from '../config';
 
 type Props = {
   chatId: string;
@@ -14,7 +15,7 @@ export function ManualOverride({ chatId, chatName }: Props) {
     if (!message.trim()) return;
     setSending(true);
     try {
-      await fetch('/api/manual-message', {
+      await fetch(`${API_URL}/api/manual-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chatId, message }),

@@ -5,9 +5,10 @@ import { ContactsView } from './components/ContactsView';
 import { PersonaView } from './components/PersonaView';
 import { KnowledgeView } from './components/KnowledgeView';
 import { ProfilesView } from './components/ProfilesView';
+import { API_URL } from './config';
 import './index.css';
 
-const socket = io();
+const socket = io(API_URL || undefined);
 
 export type MessageEvent = {
   chatId: string;
