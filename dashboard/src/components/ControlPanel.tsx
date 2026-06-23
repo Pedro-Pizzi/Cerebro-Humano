@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-type Tab = 'persona' | 'knowledge' | 'contacts' | 'profiles';
+type Tab = 'persona' | 'knowledge' | 'contacts' | 'profiles' | 'settings';
 
 export function ControlPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('persona');
@@ -9,17 +9,20 @@ export function ControlPanel() {
   const [newFact, setNewFact] = useState('');
   const [contacts, setContacts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [settings, setSettings] = useState({ allowed_numbers: '', allowed_groups: '', proactivity_enabled: true });
 
   const fetchPersona = () => fetch('http://localhost:4000/api/persona').then(res => res.json()).then(data => setPersona(data.persona || ''));
   const fetchKnowledge = () => fetch('http://localhost:4000/api/knowledge').then(res => res.json()).then(data => setKnowledge(data.knowledge || []));
   const fetchContacts = () => fetch('http://localhost:4000/api/contacts').then(res => res.json()).then(data => setContacts(data.contacts || []));
   const fetchProfiles = () => fetch('http://localhost:4000/api/profiles').then(res => res.json()).then(data => setProfiles(data.profiles || []));
+  const fetchSettings = () => fetch('http://localhost:4000/api/settings').then(res => res.json()).then(data => setSettings(data.settings));
 
   useEffect(() => {
     fetchPersona();
     fetchKnowledge();
     fetchContacts();
     fetchProfiles();
+    fetchSettings();
   }, []);
 
   const savePersona = async () => {
@@ -52,6 +55,15 @@ export function ControlPanel() {
     fetchProfiles();
   };
 
+  const saveSettings = async () => {
+    await fetch('http://localhost:4000/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    alert('Configurações salvas!');
+  };
+
   return (
     <aside className="sidebar-right panel">
       <div className="tabs" style={{ display: 'flex', flexWrap: 'wrap' }}>
@@ -59,6 +71,7 @@ export function ControlPanel() {
         <button className={activeTab === 'knowledge' ? 'active' : ''} onClick={() => setActiveTab('knowledge')}>Conhecimento</button>
         <button className={activeTab === 'contacts' ? 'active' : ''} onClick={() => setActiveTab('contacts')}>Contatos</button>
         <button className={activeTab === 'profiles' ? 'active' : ''} onClick={() => setActiveTab('profiles')}>Perfis (Mimetismo)</button>
+        <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>Configurações</button>
       </div>
 
       <div className="tab-content" style={{ marginTop: '15px' }}>
@@ -124,6 +137,43 @@ export function ControlPanel() {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <h3 className="glowing-text">Controle Total</h3>
+            
+            <div style={{ marginTop: '15px' }}>
+              <label style={{ display: 'block', color: 'var(--neon-cyan)', marginBottom: '5px' }}>Proatividade (Puxar Assunto):</label>
+              <button 
+                onClick={() => setSettings(s => ({ ...s, proactivity_enabled: !s.proactivity_enabled }))}
+                style={{ padding: '8px 15px', background: settings.proactivity_enabled ? 'var(--neon-cyan)' : 'transparent', color: settings.proactivity_enabled ? '#000' : 'var(--neon-cyan)', border: '1px solid var(--neon-cyan)', cursor: 'pointer', fontWeight: 'bold' }}>
+                {settings.proactivity_enabled ? 'LIGADO' : 'DESLIGADO'}
+              </button>
+            </div>
+
+            <div style={{ marginTop: '15px' }}>
+              <label style={{ display: 'block', color: 'var(--neon-purple)', marginBottom: '5px' }}>Números Permitidos (separados por vírgula):</label>
+              <input 
+                value={settings.allowed_numbers}
+                onChange={e => setSettings(s => ({ ...s, allowed_numbers: e.target.value }))}
+                placeholder="Ex: 5511999999999, 5511888888888 (Vazio = Todos)"
+                style={{ width: '100%', padding: '8px', background: 'rgba(0,0,0,0.5)', color: '#fff', border: '1px solid var(--neon-purple)' }}
+              />
+            </div>
+
+            <div style={{ marginTop: '15px' }}>
+              <label style={{ display: 'block', color: 'var(--neon-pink)', marginBottom: '5px' }}>Grupos Permitidos (separados por vírgula):</label>
+              <input 
+                value={settings.allowed_groups}
+                onChange={e => setSettings(s => ({ ...s, allowed_groups: e.target.value }))}
+                placeholder="Ex: Nome do Grupo (Vazio = Todos)"
+                style={{ width: '100%', padding: '8px', background: 'rgba(0,0,0,0.5)', color: '#fff', border: '1px solid var(--neon-pink)' }}
+              />
+            </div>
+
+            <button onClick={saveSettings} style={{ marginTop: '20px', padding: '10px', background: '#fff', color: '#000', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>SALVAR CONFIGURAÇÕES</button>
           </div>
         )}
       </div>

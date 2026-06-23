@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { getContactsList, getRecentMessages } from '../brain/memory';
+import { getContactsList, getRecentMessages, getSettings } from '../brain/memory';
 import { sendManualMessage } from '../messageHandler';
 import { generateResponse } from '../ai';
 
@@ -12,6 +12,14 @@ export function startProactivityCron() {
         console.log('[Proatividade] Verificando contatos para puxar assunto...');
         
         try {
+            const settings = await getSettings();
+            if (!settings.proactivity_enabled) {
+                console.log('[Proatividade] Rotina desativada nas configurações.');
+                return;
+            }
+
+            const allowedNumbers = settings.allowed_numbers ? settings.allowed_numbers.split(',').map(n => n.trim()).filter(Boolean) : [];
+
             const contacts = await getContactsList();
             const now = Date.now();
             const ONE_DAY = 24 * 60 * 60 * 1000;
@@ -20,7 +28,14 @@ export function startProactivityCron() {
             // E que não são grupos (opcional, melhor focar em DMs para não ser irritante)
             const idleContacts = contacts.filter(c => {
                 const elapsed = now - c.last_activity;
-                return elapsed > ONE_DAY && !c.chat_id.includes('@g.us');
+                if (elapsed <= ONE_DAY || c.chat_id.includes('@g.us')) return false;
+
+                const numberOnly = c.chat_id.split('@')[0];
+                if (allowedNumbers.length > 0 && !allowedNumbers.includes(numberOnly)) {
+                    return false;
+                }
+
+                return true;
             });
 
             if (idleContacts.length === 0) return;

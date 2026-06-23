@@ -10,7 +10,9 @@ import {
     getKnowledgeBase, 
     addKnowledge, 
     getContactsList,
-    getAllChatProfiles 
+    getAllChatProfiles,
+    getSettings,
+    updateSettings
 } from './brain/memory';
 import { sendManualMessage } from './messageHandler';
 import { extractAndSaveProfile } from './ai/profiler';
@@ -106,6 +108,24 @@ app.post('/api/profile/extract', async (req, res) => {
         const { chatId } = req.body;
         const profile = await extractAndSaveProfile(chatId);
         res.json({ success: true, profile });
+    } catch (err) {
+        res.status(500).json({ error: String(err) });
+    }
+});
+
+app.get('/api/settings', async (req, res) => {
+    try {
+        const settings = await getSettings();
+        res.json({ settings });
+    } catch (err) {
+        res.status(500).json({ error: String(err) });
+    }
+});
+
+app.post('/api/settings', async (req, res) => {
+    try {
+        await updateSettings(req.body);
+        res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: String(err) });
     }

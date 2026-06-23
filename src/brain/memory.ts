@@ -70,6 +70,18 @@ export async function initMemory(): Promise<void> {
                     )
                 `);
 
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS settings (
+                        id INTEGER PRIMARY KEY CHECK (id = 1),
+                        allowed_numbers TEXT NOT NULL DEFAULT '',
+                        allowed_groups TEXT NOT NULL DEFAULT '',
+                        proactivity_enabled INTEGER NOT NULL DEFAULT 1
+                    )
+                `);
+                
+                // Ensure default row exists
+                db.run(`INSERT OR IGNORE INTO settings (id, allowed_numbers, allowed_groups, proactivity_enabled) VALUES (1, '', '', 1)`);
+
                 resolve();
             });
         });
@@ -265,5 +277,56 @@ export function getCalendarEvents(): Promise<any[]> {
             if (err) reject(err);
             else resolve(rows);
         });
+    });
+}
+
+export type Settings = {
+    allowed_numbers: string;
+    allowed_groups: string;
+    proactivity_enabled: boolean;
+};
+
+export function getSettings(): Promise<Settings> {
+    return new Promise((resolve, reject) => {
+        db.get(`SELECT * FROM settings WHERE id = 1`, [], (err, row: any) => {
+            if (err) {
+                reject(err);
+            } else if (row) {
+                resolve({
+                    allowed_numbers: row.allowed_numbers,
+                    allowed_groups: row.allowed_groups,
+                    proactivity_enabled: row.proactivity_enabled === 1
+                });
+            } else {
+                resolve({ allowed_numbers: '', allowed_groups: '', proactivity_enabled: true });
+            }
+        });
+    });
+}
+
+export function updateSettings(settings: Partial<Settings>): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const current = await getSettings();
+            const allowed_numbers = settings.allowed_numbers !== undefined ? settings.allowed_numbers : current.allowed_numbers;
+            const allowed_groups = settings.allowed_groups !== undefined ? settings.allowed_groups : current.allowed_groups;
+            const proactivity_enabled = settings.proactivity_enabled !== undefined ? (settings.proactivity_enabled ? 1 : 0) : (current.proactivity_enabled ? 1 : 0);
+
+            const stmt = db.prepare(`
+                INSERT INTO settings (id, allowed_numbers, allowed_groups, proactivity_enabled) 
+                VALUES (1, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET 
+                    allowed_numbers = excluded.allowed_numbers,
+                    allowed_groups = excluded.allowed_groups,
+                    proactivity_enabled = excluded.proactivity_enabled
+            `);
+            stmt.run([allowed_numbers, allowed_groups, proactivity_enabled], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+            stmt.finalize();
+        } catch(e) {
+            reject(e);
+        }
     });
 }

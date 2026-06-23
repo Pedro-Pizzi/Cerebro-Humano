@@ -6,6 +6,7 @@ import { extractAndSaveProfile } from './ai/profiler';
 
 export let whatsappClient: Client | null = null;
 import { transcribeAudio, describeImage } from './ai/multimodal';
+import { getSettings } from './brain/memory';
 export function setWhatsappClient(client: Client) {
     whatsappClient = client;
 }
@@ -59,17 +60,7 @@ function readNumberEnv(name: string, fallback: number): number {
     return Number.isFinite(value) && value >= 0 ? value : fallback;
 }
 
-function getAllowedNumbers(): string[] {
-    const numbersEnv = process.env.ALLOWED_NUMBERS;
-    if (!numbersEnv) return [];
-    return numbersEnv.split(',').map(n => n.trim()).filter(Boolean);
-}
 
-function getAllowedGroups(): string[] {
-    const groupsEnv = process.env.ALLOWED_GROUPS;
-    if (!groupsEnv) return [];
-    return groupsEnv.split(',').map(n => n.trim()).filter(Boolean);
-}
 
 function normalizeText(value: string): string {
     return value
@@ -279,14 +270,16 @@ export async function handleIncomingMessage(msg: Message) {
 
     if (!textBody) return;
 
+    const settings = await getSettings();
+
     if (isGroup) {
-        const allowedGroups = getAllowedGroups();
+        const allowedGroups = settings.allowed_groups ? settings.allowed_groups.split(',').map(n => n.trim()).filter(Boolean) : [];
         const serializedGroupId = (chat as any).id?._serialized;
-        if (allowedGroups.length === 0 || (!allowedGroups.includes(chat.name) && !allowedGroups.includes(serializedGroupId))) {
+        if (allowedGroups.length > 0 && !allowedGroups.includes(chat.name) && !allowedGroups.includes(serializedGroupId)) {
             return;
         }
     } else {
-        const allowedNumbers = getAllowedNumbers();
+        const allowedNumbers = settings.allowed_numbers ? settings.allowed_numbers.split(',').map(n => n.trim()).filter(Boolean) : [];
         const numberOnly = msg.from.split('@')[0];
 
         if (allowedNumbers.length > 0 && !allowedNumbers.includes(numberOnly)) {
