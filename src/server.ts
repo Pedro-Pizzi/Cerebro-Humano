@@ -178,54 +178,24 @@ app.get('/api/whatsapp/contacts', async (_req, res) => {
     }
 });
 
-// Sync ALL WhatsApp chats into the DB — groups and individual conversations.
-// Uses minimal pupPage.evaluate() to extract only id/name/isGroup from Store.Chat.
-// Avoids full object serialization — only strings and bools cross the bridge.
-app.post('/api/whatsapp/sync', async (_req, res) => {
+// pupPage.evaluate() never completes in Railway container — Puppeteer bridge blocks.
+// Contacts populate naturally during message processing.
+// Manual endpoint for registering contacts/groups the bot hasn't interacted with yet.
+app.post('/api/contacts/add', async (req, res) => {
     try {
-        if (!whatsappClient) {
-            return res.status(400).json({ error: 'WhatsApp client not initialized' });
+        const { id, name, isGroup } = req.body;
+        if (!id || !name) {
+            return res.status(400).json({ error: 'id and name are required' });
         }
-
-        const client = whatsappClient as any;
-        if (!client.pupPage || typeof client.pupPage.evaluate !== 'function') {
-            return res.status(400).json({ error: 'WhatsApp browser not ready' });
+        // Normalize ID: append @c.us for phone numbers without suffix
+        let normalizedId = id.trim();
+        if (/^\d+$/.test(normalizedId)) {
+            normalizedId = `${normalizedId}@c.us`;
         }
-
-        console.log('[API] Extracting chats from WhatsApp (minimal fields)...');
-        const startTime = Date.now();
-
-        // Extract only primitive fields — no object serialization across the bridge.
-        // Each chat returns [id, name, isGroup] as plain strings/booleans.
-        const rawChats: Array<{ id: string; name: string; isGroup: boolean }> = await client.pupPage.evaluate(() => {
-            const chats = (window as any).Store.Chat.getModelsArray();
-            return chats.map((c: any) => ({
-                id: c.id?._serialized || c.id || '',
-                name: (c.name || '').slice(0, 200), // truncate long names
-                isGroup: !!c.isGroup,
-            }));
-        });
-
-        const elapsed = Date.now() - startTime;
-        console.log(`[API] Extracted ${rawChats.length} chats in ${elapsed}ms`);
-
-        // Save to DB
-        let saved = 0;
-        for (const chat of rawChats) {
-            if (!chat.id || chat.id === 'status@broadcast') continue;
-            try {
-                await saveContact(chat.id, chat.name || chat.id.split('@')[0], undefined, chat.isGroup);
-                saved++;
-            } catch {
-                // skip individual failures
-            }
-        }
-
-        console.log(`[API] Saved ${saved}/${rawChats.length} chats to DB`);
+        await saveContact(normalizedId, name, undefined, !!isGroup);
         const contacts = mapDbContacts(await getContactsList());
-        res.json({ synced: saved, total: rawChats.length, elapsedMs: elapsed, contacts, source: 'whatsapp' });
+        res.json({ added: { id: normalizedId, name, isGroup: !!isGroup }, contacts });
     } catch (err: any) {
-        console.error('[API] WhatsApp sync failed:', err.message);
         res.status(500).json({ error: err.message });
     }
 });

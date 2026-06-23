@@ -13,43 +13,53 @@ type Contact = {
 export function ContactsView() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [syncing, setSyncing] = useState(false);
+  const [addId, setAddId] = useState('');
+  const [addName, setAddName] = useState('');
+  const [addGroup, setAddGroup] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
-  const fetchDBContacts = useCallback(async () => {
+  const fetchContacts = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/contacts`);
       const data = await res.json();
       setContacts(data.contacts || []);
     } catch {
-      // DB fetch fails silently — WhatsApp sync is primary source
-    }
-  }, []);
-
-  const syncWhatsApp = useCallback(async () => {
-    setSyncing(true);
-    setError(null);
-    try {
-      const res = await fetch(`${API_URL}/api/whatsapp/sync`, { method: 'POST' });
-      const data = await res.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setContacts(data.contacts || []);
-      }
-    } catch (e: any) {
-      setError(e.message || 'Failed to sync contacts');
+      // silent
     } finally {
-      setSyncing(false);
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchDBContacts();
-    syncWhatsApp();
-  }, [fetchDBContacts, syncWhatsApp]);
+  useEffect(() => { fetchContacts(); }, [fetchContacts]);
+
+  const addContact = async () => {
+    if (!addId.trim() || !addName.trim()) return;
+    setAdding(true);
+    setAddError(null);
+    try {
+      const res = await fetch(`${API_URL}/api/contacts/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: addId.trim(), name: addName.trim(), isGroup: addGroup }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setAddError(data.error);
+      } else {
+        setAddId('');
+        setAddName('');
+        setAddGroup(false);
+        setContacts(data.contacts || []);
+      }
+    } catch (e: any) {
+      setAddError(e.message || 'Failed');
+    } finally {
+      setAdding(false);
+    }
+  };
 
   const togglePermission = async (contact: Contact, field: 'isAllowed' | 'proactivityEnabled', value: boolean) => {
     const updated = { ...contact, [field]: value };
@@ -87,40 +97,40 @@ export function ContactsView() {
         <div>
           <h1 className="page-title">Contacts</h1>
           <p className="page-subtitle">
-            Manage who the bot can reply to and start conversations with
+            Contacts appear here when they message the bot. Add missing ones manually.
           </p>
-        </div>
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <button
-            className="btn btn-secondary"
-            onClick={syncWhatsApp}
-            disabled={syncing}
-          >
-            {syncing ? (
-              <>
-                <span className="spinner spinner-sm" />
-                Syncing…
-              </>
-            ) : (
-              'Sync from WhatsApp'
-            )}
-          </button>
         </div>
       </div>
 
-      {error && (
-        <div style={{
-          padding: 'var(--space-3) var(--space-4)',
-          marginBottom: 'var(--space-4)',
-          background: 'var(--error-subtle)',
-          border: '1px solid var(--error)',
-          borderRadius: 'var(--radius)',
-          color: 'var(--error)',
-          fontSize: 'var(--text-sm)',
-        }}>
-          WhatsApp sync issue: {error}. Showing database contacts. The bot must be authenticated on WhatsApp to sync live contacts.
+      {/* Manual add form */}
+      <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
+        <div className="card-header">
+          <span className="card-title">Add contact or group</span>
         </div>
-      )}
+        <p className="help-text" style={{ marginBottom: 'var(--space-3)' }}>
+          Enter phone number (e.g. 5511999999999) or WhatsApp ID (e.g. 123456789@c.us).
+          Groups use @g.us suffix.
+        </p>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <label className="label">WhatsApp ID or phone</label>
+            <input className="input" value={addId} onChange={e => setAddId(e.target.value)} placeholder="5511999999999 or 123456@g.us" />
+          </div>
+          <div style={{ flex: 2, minWidth: 160 }}>
+            <label className="label">Display name</label>
+            <input className="input" value={addName} onChange={e => setAddName(e.target.value)} placeholder="Contact name" />
+          </div>
+          <label className="toggle" style={{ marginBottom: 0, alignSelf: 'center' }}>
+            <input type="checkbox" checked={addGroup} onChange={e => setAddGroup(e.target.checked)} />
+            <span className="toggle-track" />
+            <span className="toggle-label">Group</span>
+          </label>
+          <button className="btn btn-primary" onClick={addContact} disabled={adding || !addId.trim() || !addName.trim()}>
+            {adding ? 'Adding…' : 'Add'}
+          </button>
+        </div>
+        {addError && <p className="help-text" style={{ color: 'var(--error)', marginTop: 'var(--space-2)' }}>{addError}</p>}
+      </div>
 
       <div style={{ marginBottom: 'var(--space-4)', maxWidth: 360 }}>
         <input
