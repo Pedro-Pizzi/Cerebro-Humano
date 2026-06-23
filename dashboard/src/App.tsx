@@ -43,6 +43,30 @@ function App() {
   const [activeThoughts, setActiveThoughts] = useState<Record<string, ThinkingEvent>>({});
   const [chatSentiments, setChatSentiments] = useState<Record<string, string>>({});
   const [pendingCount, setPendingCount] = useState(0);
+  const [botOnline, setBotOnline] = useState<boolean | null>(null);
+  const [lastActivity, setLastActivity] = useState<number>(0);
+
+  // Load recent activity on mount so Live Feed isn't empty
+  useEffect(() => {
+    fetch(`${API_URL}/api/recent-activity`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.messages?.length > 0) {
+          const mapped: MessageEvent[] = data.messages.map((m: any) => ({
+            chatId: m.chat_id,
+            chatName: m.chatName || m.chat_id,
+            senderName: m.sender_name || 'Unknown',
+            isGroup: false,
+            body: m.body || '',
+            timestamp: m.created_at || Date.now(),
+          }));
+          setMessages(mapped);
+          setLastActivity(mapped[0]?.timestamp || 0);
+        }
+        setBotOnline(true);
+      })
+      .catch(() => setBotOnline(null));
+  }, []);
 
   // Clean up thoughts after response
   const scheduleThoughtCleanup = useCallback((chatId: string) => {
@@ -119,15 +143,22 @@ function App() {
 
         <div style={{ marginTop: 'auto' }}>
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-2)',
             padding: 'var(--space-3)',
             fontSize: 'var(--text-xs)',
             color: 'var(--text-tertiary)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-1)',
           }}>
-            <span className="status-dot online" />
-            Sistema ativo
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <span className={`status-dot ${botOnline === true ? 'online' : botOnline === null ? 'offline' : 'offline'}`} />
+              {botOnline === true ? 'Bot online' : botOnline === null ? 'Checking…' : 'Bot offline'}
+            </div>
+            {lastActivity > 0 && (
+              <div style={{ fontSize: '11px', opacity: 0.7 }}>
+                Last message: {new Date(lastActivity).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            )}
           </div>
         </div>
       </nav>

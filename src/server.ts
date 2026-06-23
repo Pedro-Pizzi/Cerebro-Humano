@@ -4,18 +4,19 @@ import path from 'path';
 import fs from 'fs';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { 
-    getRecentMessages, 
-    getPersona, 
-    updatePersona, 
-    getKnowledgeBase, 
-    addKnowledge, 
+import {
+    getRecentMessages,
+    getPersona,
+    updatePersona,
+    getKnowledgeBase,
+    addKnowledge,
     getContactsList,
     getAllChatProfiles,
     getSettings,
     updateSettings,
     saveContact,
-    updateContactPermissions
+    updateContactPermissions,
+    getRecentActivity
 } from './brain/memory';
 import { sendManualMessage, whatsappClient } from './messageHandler';
 import { extractAndSaveProfile } from './ai/profiler';
@@ -50,6 +51,22 @@ app.get('/api/memory/:chatId', async (req, res) => {
     try {
         const history = await getRecentMessages(req.params.chatId, 100);
         res.json({ history });
+    } catch (err) {
+        res.status(500).json({ error: String(err) });
+    }
+});
+
+// Recent activity for Live Feed — last 30 messages with sender names and timestamps
+app.get('/api/recent-activity', async (_req, res) => {
+    try {
+        const rows = await getContactsList(); // for name resolution
+        const nameMap = new Map(rows.map(c => [c.id, c.first_name || c.id]));
+        const messages = await getRecentActivity();
+        const enriched = messages.map(m => ({
+            ...m,
+            chatName: nameMap.get(m.chat_id) || m.chat_id,
+        }));
+        res.json({ messages: enriched });
     } catch (err) {
         res.status(500).json({ error: String(err) });
     }

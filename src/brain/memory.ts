@@ -197,6 +197,19 @@ export function clearMemory(chatId: string): Promise<void> {
     });
 }
 
+export function getRecentActivity(limit: number = 30): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+        db.all(
+            `SELECT chat_id, sender_name, body, type, created_at FROM messages ORDER BY created_at DESC LIMIT ?`,
+            [limit],
+            (err, rows: any[]) => {
+                if (err) reject(err);
+                else resolve(rows.reverse());
+            }
+        );
+    });
+}
+
 export function getLastResponseTime(chatId: string): Promise<number> {
     return new Promise((resolve, reject) => {
         db.get(

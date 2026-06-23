@@ -193,12 +193,19 @@ export function ContactsView() {
                       )}
                     </td>
                     <td>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
-                        {c.id.split('@')[0].slice(0, 20)}
-                      </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', opacity: 0.6 }}>
-                        @{idSuffix} — {idType[idSuffix] || idSuffix}
-                      </div>
+                      {c.id.endsWith('@c.us') ? (
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--accent-text)', fontWeight: 500 }}>
+                          +{c.id.split('@')[0]}
+                        </div>
+                      ) : c.id.endsWith('@g.us') ? (
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                          {c.id.split('@')[0].slice(0, 24)}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                          {idType[idSuffix] || 'WhatsApp'} — phone hidden
+                        </div>
+                      )}
                     </td>
                     <td>
                       <span className={`badge ${c.isGroup ? 'badge-neutral' : 'badge-success'}`}>

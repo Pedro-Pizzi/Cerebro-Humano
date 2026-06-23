@@ -9,18 +9,16 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 export async function extractAndSaveProfile(chatId: string): Promise<string | null> {
     try {
         console.log(`[Profiler] Extraindo perfil para: ${chatId}`);
-        // Pega as últimas 50 mensagens para ter contexto, focando nas que o usuário mandou
+        // getRecentMessages returns strings like "Amigo: <body>" or "Pedro: <body>"
         const messages = await getRecentMessages(chatId, 50);
-        
-        // Filtramos apenas as mensagens que EU mandei (fromMe = true)
-        // Como o BD atual armazena 'bot' para o que a IA mandou,
-        // E no celular o usuário manda, precisamos garantir que identificamos quem é o "Humano Original".
-        // Vamos considerar 'outgoing' com sender = 'Pedro (Manual)' ou messages que o evento fromMe marcou.
-        // Como o banco armazena senderName = 'Você' quando msg.fromMe é true (vamos checar isso no messageHandler)
-        const myMessages = messages.filter(m => m.sender === 'Você' || m.senderName === 'Você');
-        
+
+        // Filter for Pedro's messages (the real user, from his phone).
+        // These are incoming messages from the user's own number, formatted as "Amigo: <body>"
+        // where the body is what Pedro actually wrote. Bot/AI messages are "Pedro: <body>".
+        const myMessages = messages.filter((m: string) => m.startsWith('Amigo: '));
+
         if (myMessages.length < 3) {
-            console.log(`[Profiler] Mensagens insuficientes enviadas por mim no chat ${chatId} para extrair perfil.`);
+            console.log(`[Profiler] Mensagens insuficientes do Pedro no chat ${chatId} (${myMessages.length} encontradas).`);
             return null;
         }
 
@@ -29,7 +27,7 @@ Aqui estão algumas mensagens recentes enviadas pelo usuário "Pedro" para uma p
 Sua tarefa é analisar o ESTILO DE ESCRITA dele EXCLUSIVAMENTE para essa pessoa.
 
 MENSAGENS DO PEDRO:
-${myMessages.map(m => `- ${m.body}`).join('\n')}
+${myMessages.map((m: string) => `- ${m.replace(/^Amigo: /, '')}`).join('\n')}
 
 Por favor, escreva um parágrafo curto, direto e prático descrevendo exatamente:
 - O tom de voz (formal, informal, zoeiro, seco, romântico).
