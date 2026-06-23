@@ -56,16 +56,25 @@ async function main() {
     startProactivityCron();
     const runtimeState: RuntimeState = { ready: false };
 
-    // Railway workaround: deletar o SingletonLock do Chromium antes de iniciar
-    const lockPath = path.join(DB_DIR, '.wwebjs_auth', 'session', 'SingletonLock');
-    if (fs.existsSync(lockPath)) {
-        try {
-            fs.unlinkSync(lockPath);
-            console.log('[Init] SingletonLock removido (prevenindo crash do Chromium)');
-        } catch (e) {
-            console.error('[Init] Erro ao remover SingletonLock:', e);
+    // Railway workaround: deletar todos os SingletonLock, SingletonCookie, SingletonSocket
+    const walkAndClean = (dir: string) => {
+        if (!fs.existsSync(dir)) return;
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+            const fullPath = path.join(dir, file);
+            if (fs.statSync(fullPath).isDirectory()) {
+                walkAndClean(fullPath);
+            } else if (file.startsWith('Singleton')) {
+                try {
+                    fs.unlinkSync(fullPath);
+                    console.log(`[Init] Limpado arquivo de lock: ${fullPath}`);
+                } catch (e) {
+                    console.error(`[Init] Erro ao deletar ${fullPath}:`, e);
+                }
+            }
         }
-    }
+    };
+    walkAndClean(path.join(DB_DIR, '.wwebjs_auth'));
 
     console.log('[Init] Criando cliente WhatsApp...');
     console.log(`[Init] Chrome: ${CHROME_PATH}`);
